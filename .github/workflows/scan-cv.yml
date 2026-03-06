@@ -1,1 +1,31 @@
+name: Scan CV Google Drive
 
+on:
+  schedule:
+    # Tous les jours à 7h du matin (heure de Paris = 5h UTC en été, 6h UTC en hiver)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Permet de lancer manuellement depuis GitHub
+
+jobs:
+  scan-cv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run CV scanner
+        env:
+          GOOGLE_SA_KEY: ${{ secrets.GOOGLE_SA_KEY }}
+          FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: python scan_cv.py
