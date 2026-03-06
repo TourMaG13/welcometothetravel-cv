@@ -28,4 +28,5 @@ jobs:
           GOOGLE_SA_KEY: ${{ secrets.GOOGLE_SA_KEY }}
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scan_cv.py
