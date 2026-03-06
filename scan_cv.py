@@ -9,17 +9,19 @@ Fonctionnement :
 4. Pour chaque nouveau PDF :
    - Télécharge le fichier
    - Extrait le texte avec pdfplumber
-   - Essaie de deviner nom/prénom depuis le nom du fichier
-   - Crée une fiche candidat dans Firestore avec le lien Drive + texte brut
+   - Envoie le texte à Google Gemini pour extraction structurée
+   - Crée une fiche candidat dans Firestore avec tous les champs remplis
 """
 
 import os
 import re
 import json
+import time
 import tempfile
 from datetime import datetime
 
 import pdfplumber
+import requests
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -32,10 +34,57 @@ import io
 #  CONFIGURATION
 # ============================================================
 DRIVE_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "1g2kaOha6xJKQB1CowpNacBsO2XCcHz8y")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 # Charger les credentials depuis les variables d'environnement
 GOOGLE_SA_KEY = json.loads(os.environ["GOOGLE_SA_KEY"])
 FIREBASE_SA_KEY = json.loads(os.environ["FIREBASE_SA_KEY"])
+
+
+# ============================================================
+#  PROMPT GEMINI
+# ============================================================
+EXTRACTION_PROMPT = """Tu es un expert en recrutement dans le secteur du tourisme en France. 
+Analyse le texte suivant extrait d'un CV et extrais les informations dans un format JSON strict.
+
+REGLES IMPORTANTES :
+- Reponds UNIQUEMENT avec du JSON valide, sans texte avant ni apres, sans backticks markdown.
+- Si une information n'est pas trouvee dans le CV, mets une chaine vide "".
+- Pour les champs a choix multiples (gds, logiciels, langues), retourne un tableau JSON.
+- Ne devine PAS les informations. Extrais uniquement ce qui est explicitement mentionne.
+- Pour le champ "experience", evalue le niveau global base sur les dates d'experience mentionnees.
+- Pour "posteRecherche", si non mentionne explicitement, deduis-le du poste actuel ou du profil.
+- Pour "secteur", deduis-le de l'experience professionnelle si non mentionne.
+
+CHAMPS A EXTRAIRE (respecte exactement ces noms) :
+{
+  "nom": "nom de famille",
+  "prenom": "prenom",
+  "telephone": "numero de telephone",
+  "email": "adresse email",
+  "ville": "ville actuelle de residence",
+  "region": "region francaise",
+  "pays": "pays de residence (France par defaut)",
+  "posteActuel": "poste ou titre actuel",
+  "posteRecherche": "poste ou type de poste recherche",
+  "zone": "parmi: France entiere, Ile-de-France, Nord, Nord-Est, Nord-Ouest, Sud-Est, Sud-Ouest, Centre, DROM-COM, Europe, International, Indifferent. Vide si non mentionne.",
+  "niveauEtude": "parmi: Bac, Bac+2 (BTS/DUT), Bac+3 (Licence), Bac+4 (Maitrise), Bac+5 (Master/Ecole), Bac+6 et plus (Doctorat), Autodidacte, Non precise",
+  "experience": "parmi: Debutant (0-1 an), Junior (1-3 ans), Confirme (3-5 ans), Senior (5-10 ans), Expert (10+ ans), Non precise",
+  "disponibilite": "parmi: Immediate, Sous 1 mois, Sous 3 mois, Non precise",
+  "teletravail": "parmi: 100% teletravail, Teletravail partiel, Presentiel uniquement, Flexible, Non precise",
+  "contrat": "parmi: CDI, CDD, Interim, Freelance/Independant, Alternance, Stage, Saisonnier, Non precise",
+  "secteur": "parmi: Tour-operateur, Agence de voyages, Compagnie aerienne, Hotellerie, Office de tourisme, Receptif/DMC, Croisieres, Transport, MICE/Evenementiel, Technologie/GDS, Assurance voyage, Loisirs/Parcs, Luxe/Conciergerie, E-tourisme, Tourisme institutionnel, Autre",
+  "employeur": "parmi: Grand groupe, PME, Start-up, Independant/Franchise, Secteur public, Association/ONG, Indifferent",
+  "competences": "competences cles separees par des virgules",
+  "gds": ["liste des GDS maitrises parmi: Amadeus, Galileo, Sabre, Worldspan, Apollo, Travelport, Travelsky, Autre"],
+  "logiciels": ["liste des logiciels maitrises parmi: Pack Office, Salesforce, Gestour, Orchestra, Travel Studio, Amadeus Selling Platform, GIATA, Canva, Adobe Creative Suite, WordPress, Google Workspace, SAP, CRM (autre), ERP (autre), Autre"],
+  "langues": ["liste des langues parmi: Francais, Anglais, Espagnol, Allemand, Italien, Portugais, Arabe, Chinois (Mandarin), Russe, Japonais, Neerlandais, Autre"],
+  "destinations": "destinations maitrisees separees par des virgules"
+}
+
+TEXTE DU CV :
+"""
 
 
 # ============================================================
@@ -79,16 +128,14 @@ def list_drive_pdfs(drive_service):
         if not page_token:
             break
 
-    print(f"[Drive] {len(results)} PDF(s) trouvé(s) dans le dossier")
+    print(f"[Drive] {len(results)} PDF(s) trouve(s) dans le dossier")
     return results
 
 
 def download_pdf(drive_service, file_id):
-    """Télécharge un PDF depuis Drive et retourne le chemin temporaire."""
+    """Telecharge un PDF depuis Drive et retourne le chemin temporaire."""
     request = drive_service.files().get_media(fileId=file_id)
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-
-    downloader = MediaIoBaseDownload(io.BytesIO(), request)
     fh = io.FileIO(tmp.name, "wb")
     downloader = MediaIoBaseDownload(fh, request)
 
@@ -113,134 +160,153 @@ def extract_text_from_pdf(pdf_path):
                 if page_text:
                     text += page_text + "\n"
     except Exception as e:
-        print(f"[PDF] Erreur extraction texte: {e}")
+        print(f"  [PDF] Erreur extraction texte: {e}")
         return ""
 
     return text.strip()
 
 
-def extract_name_from_filename(filename):
-    """
-    Essaie d'extraire nom/prénom depuis le nom du fichier.
-    Patterns courants :
-    - "CV Jean Dupont.pdf"
-    - "CV_Jean_Dupont.pdf"
-    - "Jean DUPONT - CV.pdf"
-    - "DUPONT_Jean_CV.pdf"
-    - "cv-jean-dupont-2024.pdf"
-    """
-    # Retirer l'extension
-    name = os.path.splitext(filename)[0]
+# ============================================================
+#  GEMINI API
+# ============================================================
+def extract_fields_with_gemini(text_cv, retry_count=0):
+    """Envoie le texte du CV a Gemini et recupere les champs structures."""
+    if not text_cv or len(text_cv.strip()) < 50:
+        print("  [Gemini] Texte trop court, extraction impossible")
+        return None
 
-    # Retirer les mots courants
-    noise_words = [
-        r'\bcv\b', r'\bresume\b', r'\bcurriculum\b', r'\bvitae\b',
-        r'\b20\d{2}\b', r'\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b',
-        r'\bpdf\b', r'\bfinal\b', r'\bv\d+\b', r'\bmaj\b',
-        r'\bmis[e]?\s*[àa]\s*jour\b', r'\bupdate\b'
-    ]
+    # Tronquer le texte si trop long
+    truncated = text_cv[:15000]
 
-    cleaned = name
-    for pattern in noise_words:
-        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": EXTRACTION_PROMPT + truncated
+            }]
+        }],
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 2000
+        }
+    }
 
-    # Remplacer séparateurs par des espaces
-    cleaned = re.sub(r'[_\-\.]+', ' ', cleaned)
-    # Nettoyer les espaces multiples
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    try:
+        response = requests.post(
+            f"{GEMINI_URL}?key={GEMINI_API_KEY}",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=60
+        )
 
-    # Séparer en mots (garder seulement les mots alphabétiques)
-    words = [w for w in cleaned.split() if re.match(r'^[a-zA-ZÀ-ÿ]+$', w)]
+        if response.status_code == 429:
+            if retry_count < 3:
+                wait_time = 60 * (retry_count + 1)
+                print(f"  [Gemini] Rate limit atteint, attente {wait_time}s (tentative {retry_count + 1}/3)...")
+                time.sleep(wait_time)
+                return extract_fields_with_gemini(text_cv, retry_count + 1)
+            else:
+                print("  [Gemini] Rate limit: nombre max de tentatives atteint")
+                return None
 
-    if len(words) == 0:
-        return "", ""
-    elif len(words) == 1:
-        return words[0].capitalize(), ""
-    else:
-        # Essayer de deviner : le mot tout en majuscules est probablement le nom
-        nom = ""
-        prenom = ""
-        for w in words:
-            if w.isupper() and len(w) > 1:
-                nom = w.capitalize()
-            elif not nom:
-                prenom = w.capitalize()
-            elif not prenom:
-                prenom = w.capitalize()
+        if response.status_code != 200:
+            print(f"  [Gemini] Erreur API: {response.status_code} - {response.text[:300]}")
+            return None
 
-        # Si aucun mot n'est en majuscules, prendre le premier comme prénom, le second comme nom
-        if not nom and not prenom:
-            prenom = words[0].capitalize()
-            nom = words[1].capitalize() if len(words) > 1 else ""
-        elif not prenom:
-            # Trouver le premier mot qui n'est pas le nom
-            for w in words:
-                if w.capitalize() != nom:
-                    prenom = w.capitalize()
-                    break
+        data = response.json()
+        
+        # Vérifier la structure de la réponse
+        candidates = data.get("candidates", [])
+        if not candidates:
+            print("  [Gemini] Pas de candidats dans la reponse")
+            return None
+            
+        content = candidates[0].get("content", {})
+        parts = content.get("parts", [])
+        if not parts:
+            print("  [Gemini] Pas de contenu dans la reponse")
+            return None
 
-        return prenom, nom
+        text_response = parts[0].get("text", "")
 
+        # Nettoyer la reponse (enlever backticks markdown si presents)
+        cleaned = text_response.strip()
+        cleaned = re.sub(r'^```json\s*', '', cleaned)
+        cleaned = re.sub(r'^```\s*', '', cleaned)
+        cleaned = re.sub(r'\s*```$', '', cleaned)
+        cleaned = cleaned.strip()
 
-def extract_email_from_text(text):
-    """Extrait la première adresse email trouvée dans le texte."""
-    match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', text)
-    return match.group(0) if match else ""
+        result = json.loads(cleaned)
+        return result
 
-
-def extract_phone_from_text(text):
-    """Extrait le premier numéro de téléphone trouvé dans le texte."""
-    patterns = [
-        r'(?:(?:\+|00)33[\s.\-]?|0)[1-9](?:[\s.\-]?\d{2}){4}',  # France
-        r'\+?\d{1,3}[\s.\-]?\(?\d{1,4}\)?[\s.\-]?\d{2,4}[\s.\-]?\d{2,4}[\s.\-]?\d{0,4}',  # International
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, text)
-        if match:
-            return match.group(0).strip()
-    return ""
+    except json.JSONDecodeError as e:
+        print(f"  [Gemini] Erreur parsing JSON: {e}")
+        if 'text_response' in dir():
+            print(f"  [Gemini] Reponse brute: {text_response[:500]}")
+        return None
+    except requests.exceptions.Timeout:
+        print("  [Gemini] Timeout de la requete")
+        return None
+    except Exception as e:
+        print(f"  [Gemini] Erreur: {e}")
+        return None
 
 
 # ============================================================
 #  FIRESTORE
 # ============================================================
 def get_already_scanned(db):
-    """Récupère la liste des fichiers Drive déjà scannés."""
+    """Recupere la liste des fichiers Drive deja scannes."""
     docs = db.collection("scans_log").stream()
     return {doc.id: doc.to_dict() for doc in docs}
 
 
-def create_candidat(db, file_info, prenom, nom, email, telephone, text_cv):
-    """Crée une fiche candidat dans Firestore."""
+def create_candidat(db, file_info, extracted_data, text_cv):
+    """Cree une fiche candidat dans Firestore."""
     drive_url = f"https://drive.google.com/file/d/{file_info['id']}/view"
 
+    # Valeurs par defaut
+    d = extracted_data or {}
+
+    # S'assurer que les champs tableau sont bien des tableaux
+    gds = d.get("gds", [])
+    if isinstance(gds, str):
+        gds = [g.strip() for g in gds.split(",") if g.strip()]
+
+    logiciels = d.get("logiciels", [])
+    if isinstance(logiciels, str):
+        logiciels = [l.strip() for l in logiciels.split(",") if l.strip()]
+
+    langues = d.get("langues", [])
+    if isinstance(langues, str):
+        langues = [l.strip() for l in langues.split(",") if l.strip()]
+
     data = {
-        "nom": nom,
-        "prenom": prenom,
-        "email": email,
-        "telephone": telephone,
-        "ville": "",
-        "region": "",
-        "pays": "France",
-        "posteActuel": "",
-        "posteRecherche": "",
-        "zone": "",
-        "niveauEtude": "",
-        "experience": "",
-        "disponibilite": "",
-        "teletravail": "",
-        "contrat": "",
-        "secteur": "",
-        "employeur": "",
-        "competences": "",
-        "gds": [],
-        "logiciels": [],
-        "langues": [],
-        "destinations": "",
+        "nom": d.get("nom", ""),
+        "prenom": d.get("prenom", ""),
+        "email": d.get("email", ""),
+        "telephone": d.get("telephone", ""),
+        "ville": d.get("ville", ""),
+        "region": d.get("region", ""),
+        "pays": d.get("pays", "France"),
+        "posteActuel": d.get("posteActuel", ""),
+        "posteRecherche": d.get("posteRecherche", ""),
+        "zone": d.get("zone", ""),
+        "niveauEtude": d.get("niveauEtude", ""),
+        "experience": d.get("experience", ""),
+        "disponibilite": d.get("disponibilite", ""),
+        "teletravail": d.get("teletravail", ""),
+        "contrat": d.get("contrat", ""),
+        "secteur": d.get("secteur", ""),
+        "employeur": d.get("employeur", ""),
+        "competences": d.get("competences", ""),
+        "gds": gds,
+        "logiciels": logiciels,
+        "langues": langues,
+        "destinations": d.get("destinations", ""),
         "statut": "Nouveau",
         "commentaires": "",
         "pdfUrl": drive_url,
-        "texteCv": text_cv[:50000] if text_cv else "",  # Limiter à 50k caractères
+        "texteCv": text_cv[:50000] if text_cv else "",
         "driveFileId": file_info["id"],
         "driveFileName": file_info["name"],
         "dateReception": file_info.get("createdTime", datetime.utcnow().isoformat()),
@@ -254,7 +320,7 @@ def create_candidat(db, file_info, prenom, nom, email, telephone, text_cv):
 
 
 def mark_as_scanned(db, file_id, candidat_id, filename):
-    """Marque un fichier comme scanné dans scans_log."""
+    """Marque un fichier comme scanne dans scans_log."""
     db.collection("scans_log").document(file_id).set({
         "candidatId": candidat_id,
         "filename": filename,
@@ -267,8 +333,12 @@ def mark_as_scanned(db, file_id, candidat_id, filename):
 # ============================================================
 def main():
     print("=" * 60)
-    print(f"[Scan CV] Démarrage - {datetime.utcnow().isoformat()}")
+    print(f"[Scan CV] Demarrage - {datetime.utcnow().isoformat()}")
     print("=" * 60)
+
+    if not GEMINI_API_KEY:
+        print("[ERREUR] GEMINI_API_KEY non definie")
+        return
 
     # Init services
     drive = init_drive()
@@ -277,17 +347,20 @@ def main():
     # Lister les PDF dans le dossier Drive
     pdf_files = list_drive_pdfs(drive)
 
-    # Récupérer les fichiers déjà scannés
+    # Recuperer les fichiers deja scannes
     already_scanned = get_already_scanned(db)
-    print(f"[Firestore] {len(already_scanned)} fichier(s) déjà scanné(s)")
+    print(f"[Firestore] {len(already_scanned)} fichier(s) deja scanne(s)")
 
     # Filtrer les nouveaux fichiers
     new_files = [f for f in pdf_files if f["id"] not in already_scanned]
-    print(f"[Nouveau] {len(new_files)} nouveau(x) CV à traiter")
+    print(f"[Nouveau] {len(new_files)} nouveau(x) CV a traiter")
 
     if not new_files:
-        print("[Fin] Aucun nouveau CV à traiter")
+        print("[Fin] Aucun nouveau CV a traiter")
         return
+
+    success_count = 0
+    error_count = 0
 
     # Traiter chaque nouveau fichier
     for i, file_info in enumerate(new_files, 1):
@@ -296,40 +369,51 @@ def main():
         print(f"\n[{i}/{len(new_files)}] Traitement: {filename}")
 
         try:
-            # Extraire nom/prénom depuis le nom du fichier
-            prenom, nom = extract_name_from_filename(filename)
-            print(f"  → Nom extrait: {prenom} {nom}")
-
-            # Télécharger et extraire le texte
+            # Telecharger et extraire le texte
             pdf_path = download_pdf(drive, file_id)
             text_cv = extract_text_from_pdf(pdf_path)
-            print(f"  → Texte extrait: {len(text_cv)} caractères")
+            print(f"  -> Texte extrait: {len(text_cv)} caracteres")
 
-            # Extraire email et téléphone du texte
-            email = extract_email_from_text(text_cv)
-            telephone = extract_phone_from_text(text_cv)
-            if email:
-                print(f"  → Email trouvé: {email}")
-            if telephone:
-                print(f"  → Téléphone trouvé: {telephone}")
+            # Extraction IA avec Gemini
+            extracted_data = None
+            if text_cv and len(text_cv.strip()) >= 50:
+                print("  -> Envoi a Gemini pour extraction...")
+                extracted_data = extract_fields_with_gemini(text_cv)
 
-            # Créer la fiche candidat
-            candidat_id = create_candidat(db, file_info, prenom, nom, email, telephone, text_cv)
-            print(f"  → Fiche créée: {candidat_id}")
+                if extracted_data:
+                    filled = sum(1 for v in extracted_data.values() if v and v != "" and v != [])
+                    total = len(extracted_data)
+                    print(f"  -> Extraction reussie: {filled}/{total} champs remplis")
+                    if extracted_data.get("nom"):
+                        print(f"  -> Candidat: {extracted_data.get('prenom', '')} {extracted_data.get('nom', '')}")
+                else:
+                    print("  -> Extraction Gemini echouee, fiche creee avec texte brut uniquement")
+            else:
+                print("  -> Texte insuffisant pour extraction IA")
 
-            # Marquer comme scanné
+            # Creer la fiche candidat
+            candidat_id = create_candidat(db, file_info, extracted_data, text_cv)
+            print(f"  -> Fiche creee: {candidat_id}")
+
+            # Marquer comme scanne
             mark_as_scanned(db, file_id, candidat_id, filename)
-            print(f"  ✓ Terminé")
+            print(f"  OK Termine")
+            success_count += 1
 
             # Nettoyer le fichier temporaire
             os.unlink(pdf_path)
 
+            # Pause entre les requetes Gemini (respect du rate limit gratuit: 15/min)
+            if i < len(new_files):
+                time.sleep(5)
+
         except Exception as e:
-            print(f"  ✗ Erreur: {e}")
+            print(f"  ERREUR: {e}")
+            error_count += 1
             continue
 
     print(f"\n{'=' * 60}")
-    print(f"[Fin] {len(new_files)} CV traité(s)")
+    print(f"[Fin] {success_count} CV traite(s) avec succes, {error_count} erreur(s)")
     print(f"{'=' * 60}")
 
 
