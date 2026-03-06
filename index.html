@@ -1,0 +1,3031 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WelcomeToTheTravel — Gestion des candidatures</title>
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a3c6e;
+            --primary-light: #2a5298;
+            --primary-dark: #0f2847;
+            --accent: #e8791d;
+            --accent-light: #f59e4b;
+            --success: #27ae60;
+            --success-light: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --text: #2c3e50;
+            --text-light: #7f8c8d;
+            --border: #dfe6e9;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+            --radius: 10px;
+            --radius-sm: 6px;
+            --transition: all 0.25s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ===== AUTH SCREEN ===== */
+        .auth-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+            padding: 20px;
+        }
+
+        .auth-box {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+        }
+
+        .auth-box .logo {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .auth-box .logo span { color: var(--accent); }
+
+        .auth-box .subtitle {
+            color: var(--text-light);
+            font-size: 0.85rem;
+            margin-bottom: 32px;
+        }
+
+        .auth-box input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            transition: var(--transition);
+            outline: none;
+        }
+
+        .auth-box input:focus { border-color: var(--primary); }
+
+        .auth-box .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .auth-box .btn-login:hover { background: var(--primary-light); }
+
+        .auth-error {
+            color: var(--danger);
+            font-size: 0.82rem;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        /* ===== TOP NAV ===== */
+        .topnav {
+            background: var(--primary);
+            color: white;
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .topnav .brand {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .topnav .brand span { color: var(--accent-light); }
+
+        .topnav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .topnav-right .user-info {
+            font-size: 0.85rem;
+            opacity: 0.85;
+        }
+
+        .topnav-right .btn-logout {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 7px 16px;
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .topnav-right .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+        /* ===== SIDEBAR + MAIN LAYOUT ===== */
+        .app-layout {
+            display: flex;
+            min-height: calc(100vh - 60px);
+        }
+
+        .sidebar {
+            width: 240px;
+            background: var(--primary-dark);
+            color: white;
+            padding: 20px 0;
+            flex-shrink: 0;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: var(--transition);
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu a:hover {
+            background: rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        .sidebar-menu a.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: var(--accent);
+        }
+
+        .sidebar-menu a i { width: 20px; text-align: center; }
+
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            overflow-x: auto;
+        }
+
+        /* ===== SECTION VISIBILITY ===== */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* ===== PAGE HEADERS ===== */
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .page-header h1 {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 1.6rem;
+            color: var(--primary);
+        }
+
+        .page-header .stats {
+            display: flex;
+            gap: 16px;
+        }
+
+        .stat-badge {
+            background: white;
+            border-radius: var(--radius-sm);
+            padding: 8px 16px;
+            font-size: 0.82rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-badge .num {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-light); }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-accent:hover { background: var(--accent-light); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: var(--success-light); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { opacity: 0.85; }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text);
+        }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+
+        /* ===== SEARCH / FILTER BAR ===== */
+        .search-bar {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .search-bar-top {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input-wrap {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .search-input-wrap i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+        }
+
+        .search-input-wrap input {
+            width: 100%;
+            padding: 12px 12px 12px 42px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.88rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .search-input-wrap input:focus { border-color: var(--primary); }
+
+        .btn-toggle-filters {
+            white-space: nowrap;
+        }
+
+        .advanced-filters {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .advanced-filters.open { display: block; }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            width: 100%;
+            padding: 9px 12px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.83rem;
+            outline: none;
+            transition: var(--transition);
+            background: white;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus { border-color: var(--primary); }
+
+        .filters-actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* ===== TABLE ===== */
+        .table-wrap {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .table-scroll { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.84rem;
+        }
+
+        thead {
+            background: var(--primary);
+            color: white;
+        }
+
+        thead th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        thead th:hover { background: var(--primary-light); }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        tbody tr:hover { background: #f8f9fb; }
+
+        tbody td {
+            padding: 12px 16px;
+            white-space: nowrap;
+        }
+
+        .td-check { width: 40px; }
+        .td-check input[type="checkbox"] { cursor: pointer; transform: scale(1.15); }
+
+        .td-name {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .td-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .status-nouveau { background: #eaf2ff; color: #2a5298; }
+        .status-en-cours { background: #fff8e6; color: #c27c0e; }
+        .status-propose { background: #e8f8f0; color: #1e8449; }
+        .status-embauche { background: #d5f5e3; color: #196f3d; }
+        .status-indisponible { background: #fde8e8; color: #c0392b; }
+        .status-archive { background: #eee; color: #666; }
+
+        .td-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .td-actions button {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 0.8rem;
+        }
+
+        .btn-edit { background: #eaf2ff; color: var(--primary); }
+        .btn-edit:hover { background: var(--primary); color: white; }
+        .btn-view-pdf { background: #fff3e6; color: var(--accent); }
+        .btn-view-pdf:hover { background: var(--accent); color: white; }
+        .btn-delete { background: #fde8e8; color: var(--danger); }
+        .btn-delete:hover { background: var(--danger); color: white; }
+
+        .table-footer {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            color: var(--text-light);
+            border-top: 1px solid var(--border);
+        }
+
+        .table-footer .pagination {
+            display: flex;
+            gap: 4px;
+        }
+
+        .table-footer .pagination button {
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: white;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.82rem;
+            transition: var(--transition);
+        }
+
+        .table-footer .pagination button.active,
+        .table-footer .pagination button:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* ===== MODAL / FORM ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 960px;
+            box-shadow: var(--shadow-lg);
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover { background: var(--danger); color: white; }
+
+        .modal-body { padding: 24px 28px; }
+
+        .form-section-title {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 24px 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--bg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-section-title:first-child { margin-top: 0; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .form-group { display: flex; flex-direction: column; }
+
+        .form-group.full-width { grid-column: 1 / -1; }
+
+        .form-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            outline: none;
+            transition: var(--transition);
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus { border-color: var(--primary); }
+
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        .multi-select-wrap {
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 8px;
+            min-height: 42px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .multi-select-wrap:focus-within { border-color: var(--primary); }
+
+        .ms-tag {
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ms-tag .ms-remove {
+            cursor: pointer;
+            font-weight: 700;
+            opacity: 0.8;
+        }
+
+        .ms-tag .ms-remove:hover { opacity: 1; }
+
+        .ms-dropdown {
+            position: absolute;
+            top: 100%;
+            left: -2px;
+            right: -2px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-top: none;
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 10;
+            display: none;
+        }
+
+        .ms-dropdown.open { display: block; }
+
+        .ms-dropdown .ms-option {
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .ms-dropdown .ms-option:hover { background: var(--bg); }
+        .ms-dropdown .ms-option.selected { background: #eaf2ff; color: var(--primary); font-weight: 600; }
+
+        .ms-input {
+            border: none !important;
+            padding: 2px 4px !important;
+            font-size: 0.82rem !important;
+            min-width: 100px;
+            flex: 1;
+            outline: none !important;
+        }
+
+        .modal-footer {
+            padding: 16px 28px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* ===== PDF VIEWER ===== */
+        .pdf-viewer-panel {
+            background: var(--bg);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .pdf-viewer-panel iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: var(--radius-sm);
+        }
+
+        .pdf-viewer-panel .no-pdf {
+            padding: 60px 20px;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .pdf-viewer-panel .no-pdf i {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            display: block;
+            opacity: 0.4;
+        }
+
+        /* ===== ASSIGN MODAL ===== */
+        .assign-section { margin-bottom: 20px; }
+
+        .assign-section h3 {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .candidate-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .candidate-chip {
+            background: #eaf2ff;
+            color: var(--primary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        /* ===== ENTERPRISE CARDS ===== */
+        .enterprise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .enterprise-card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            transition: var(--transition);
+        }
+
+        .enterprise-card:hover { box-shadow: var(--shadow-lg); }
+
+        .enterprise-card h3 {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .enterprise-card .meta {
+            font-size: 0.82rem;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+
+        .enterprise-card .offers-count {
+            font-size: 0.8rem;
+            background: #eaf2ff;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .enterprise-card .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            top: 72px;
+            right: 20px;
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: var(--primary);
+            color: white;
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            max-width: 380px;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+        }
+
+        .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+        .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--text); }
+        .empty-state p { font-size: 0.88rem; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-content { padding: 16px; }
+            .page-header { flex-direction: column; align-items: flex-start; }
+            .form-grid { grid-template-columns: 1fr; }
+            .filters-grid { grid-template-columns: 1fr 1fr; }
+            .modal { margin: 10px; }
+        }
+
+        /* ===== ENTERPRISE VIEW ===== */
+        .ent-offre-card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .ent-offre-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .ent-offre-header h3 {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 1.15rem;
+        }
+
+        .ent-offre-header .offre-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.82rem;
+            opacity: 0.9;
+        }
+
+        .ent-offre-header .offre-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ent-offre-header .candidat-count {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .ent-candidat-list {
+            padding: 0;
+        }
+
+        .ent-candidat-row {
+            display: flex;
+            align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .ent-candidat-row:last-child { border-bottom: none; }
+        .ent-candidat-row:hover { background: #f8f9fb; }
+
+        .ent-candidat-info { flex: 1; min-width: 200px; }
+
+        .ent-candidat-info .name {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .ent-candidat-info .details {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .ent-candidat-info .details span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ent-candidat-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .ent-tag {
+            background: #eaf2ff;
+            color: var(--primary);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .ent-candidat-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .ent-no-candidats {
+            padding: 40px 24px;
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.88rem;
+        }
+
+        /* ===== CANDIDAT DETAIL (enterprise view) ===== */
+        .candidat-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .candidat-detail-grid { grid-template-columns: 1fr; }
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+        }
+
+        .detail-section-title {
+            font-family: 'Josefin Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--bg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detail-row {
+            display: flex;
+            padding: 6px 0;
+            font-size: 0.85rem;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: var(--text-light);
+            min-width: 160px;
+            flex-shrink: 0;
+        }
+
+        .detail-value { color: var(--text); }
+
+        /* ===== LOADING ===== */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 400;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .loading-overlay.show { display: flex; }
+
+        .loading-overlay .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border-color: rgba(26,60,110,0.2);
+            border-top-color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== AUTH SCREEN ==================== -->
+<div id="authScreen" class="auth-screen">
+    <div class="auth-box">
+        <div class="logo">Welcome<span>ToTheTravel</span></div>
+        <div class="subtitle">Gestion des candidatures</div>
+        <div id="authError" class="auth-error"></div>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Mot de passe">
+        <button class="btn-login" onclick="handleLogin()">Se connecter</button>
+    </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="appMain" style="display:none;">
+
+    <!-- TOP NAV -->
+    <nav class="topnav">
+        <div class="brand">Welcome<span>ToTheTravel</span></div>
+        <div class="topnav-right">
+            <span class="user-info" id="userEmail"></span>
+            <button class="btn-logout" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+        </div>
+    </nav>
+
+    <div class="app-layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <nav class="sidebar-menu">
+                <a class="active" onclick="showSection('candidats')" data-section="candidats">
+                    <i class="fas fa-users"></i> Candidats
+                </a>
+                <a onclick="showSection('entreprises')" data-section="entreprises">
+                    <i class="fas fa-building"></i> Entreprises
+                </a>
+                <a onclick="showSection('offres')" data-section="offres">
+                    <i class="fas fa-briefcase"></i> Offres d'emploi
+                </a>
+                <a onclick="showSection('assignations')" data-section="assignations">
+                    <i class="fas fa-link"></i> Assignations
+                </a>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+
+            <!-- ===== SECTION CANDIDATS ===== -->
+            <div id="section-candidats" class="section active">
+                <div class="page-header">
+                    <h1><i class="fas fa-users"></i> Candidats</h1>
+                    <div style="display:flex;gap:12px;align-items:center;">
+                        <div class="stats">
+                            <div class="stat-badge"><span class="num" id="totalCandidats">0</span> candidats</div>
+                        </div>
+                        <button class="btn btn-accent" onclick="openCandidatForm()">
+                            <i class="fas fa-plus"></i> Nouveau candidat
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SEARCH BAR -->
+                <div class="search-bar">
+                    <div class="search-bar-top">
+                        <div class="search-input-wrap">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchGlobal" placeholder="Rechercher par nom, poste, compétences..." oninput="filterCandidats()">
+                        </div>
+                        <button class="btn btn-outline btn-toggle-filters" onclick="toggleFilters()">
+                            <i class="fas fa-sliders-h"></i> Filtres avancés
+                        </button>
+                    </div>
+                    <div id="advancedFilters" class="advanced-filters">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label>Statut</label>
+                                <select id="filterStatut" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                    <option value="Nouveau">Nouveau</option>
+                                    <option value="En cours de traitement">En cours</option>
+                                    <option value="Proposé à une entreprise">Proposé</option>
+                                    <option value="Embauché">Embauché</option>
+                                    <option value="Indisponible">Indisponible</option>
+                                    <option value="Archivé">Archivé</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Zone géographique</label>
+                                <select id="filterZone" onchange="filterCandidats()">
+                                    <option value="">Toutes</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Niveau d'expérience</label>
+                                <select id="filterExperience" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Contrat recherché</label>
+                                <select id="filterContrat" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Secteur d'activité</label>
+                                <select id="filterSecteur" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Télétravail</label>
+                                <select id="filterTeletravail" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Langue</label>
+                                <select id="filterLangue" onchange="filterCandidats()">
+                                    <option value="">Toutes</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>GDS maîtrisé</label>
+                                <select id="filterGDS" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Type d'employeur</label>
+                                <select id="filterEmployeur" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Disponibilité</label>
+                                <select id="filterDispo" onchange="filterCandidats()">
+                                    <option value="">Tous</option>
+                                    <option value="Immédiate">Immédiate</option>
+                                    <option value="Sous 1 mois">Sous 1 mois</option>
+                                    <option value="Sous 3 mois">Sous 3 mois</option>
+                                    <option value="Non précisé">Non précisé</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="filters-actions">
+                            <button class="btn btn-outline btn-sm" onclick="resetFilters()">
+                                <i class="fas fa-undo"></i> Réinitialiser
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ASSIGN SELECTED -->
+                <div id="bulkActions" style="display:none;margin-bottom:16px;">
+                    <button class="btn btn-success" onclick="openAssignModal()">
+                        <i class="fas fa-paper-plane"></i> Proposer <span id="selectedCount">0</span> candidat(s) à une entreprise
+                    </button>
+                </div>
+
+                <!-- TABLE -->
+                <div class="table-wrap">
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="td-check"><input type="checkbox" onchange="toggleAllChecks(this)"></th>
+                                    <th onclick="sortTable('nom')">Nom <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('posteRecherche')">Poste recherché <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('ville')">Ville <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('experience')">Expérience <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('contrat')">Contrat <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('statut')">Statut <i class="fas fa-sort"></i></th>
+                                    <th onclick="sortTable('dateReception')">Reçu le <i class="fas fa-sort"></i></th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="candidatsTable"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <span id="tableInfo">0 candidat(s)</span>
+                        <div class="pagination" id="pagination"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION ENTREPRISES ===== -->
+            <div id="section-entreprises" class="section">
+                <div class="page-header">
+                    <h1><i class="fas fa-building"></i> Entreprises</h1>
+                    <button class="btn btn-accent" onclick="openEntrepriseForm()">
+                        <i class="fas fa-plus"></i> Nouvelle entreprise
+                    </button>
+                </div>
+                <div class="enterprise-grid" id="entreprisesGrid"></div>
+            </div>
+
+            <!-- ===== SECTION OFFRES ===== -->
+            <div id="section-offres" class="section">
+                <div class="page-header">
+                    <h1><i class="fas fa-briefcase"></i> Offres d'emploi</h1>
+                    <button class="btn btn-accent" onclick="openOffreForm()">
+                        <i class="fas fa-plus"></i> Nouvelle offre
+                    </button>
+                </div>
+                <div class="table-wrap">
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Entreprise</th>
+                                    <th>Intitulé du poste</th>
+                                    <th>Lieu</th>
+                                    <th>Contrat</th>
+                                    <th>Statut</th>
+                                    <th>Candidats proposés</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="offresTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION ASSIGNATIONS ===== -->
+            <div id="section-assignations" class="section">
+                <div class="page-header">
+                    <h1><i class="fas fa-link"></i> Assignations</h1>
+                </div>
+                <div class="table-wrap">
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Candidat</th>
+                                    <th>Entreprise</th>
+                                    <th>Offre</th>
+                                    <th>Date d'assignation</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignationsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION VUE ENTREPRISE ===== -->
+            <div id="section-ent-dashboard" class="section">
+                <div class="page-header">
+                    <h1><i class="fas fa-building"></i> <span id="entWelcomeName">Bienvenue</span></h1>
+                    <div class="stats">
+                        <div class="stat-badge"><span class="num" id="entTotalOffres">0</span> offre(s)</div>
+                        <div class="stat-badge"><span class="num" id="entTotalCandidats">0</span> candidat(s) proposé(s)</div>
+                    </div>
+                </div>
+                <div id="entOffresContainer"></div>
+            </div>
+
+            <!-- ===== SECTION VUE CANDIDAT ENTREPRISE ===== -->
+            <div id="section-ent-candidat" class="section">
+                <div style="margin-bottom:16px;">
+                    <button class="btn btn-outline" onclick="showSection('ent-dashboard')">
+                        <i class="fas fa-arrow-left"></i> Retour aux offres
+                    </button>
+                </div>
+                <div class="page-header">
+                    <h1 id="entCandidatTitle"><i class="fas fa-user"></i> Fiche candidat</h1>
+                </div>
+                <div id="entCandidatDetail" style="background:white;border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;"></div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<!-- ==================== MODAL CANDIDAT ==================== -->
+<div id="modalCandidat" class="modal-overlay" onclick="if(event.target===this)closeModal('modalCandidat')">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modalCandidatTitle">Nouveau candidat</h2>
+            <button class="modal-close" onclick="closeModal('modalCandidat')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="candidatId">
+
+            <div class="form-section-title"><i class="fas fa-user"></i> Informations personnelles</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Date de réception</label>
+                    <input type="date" id="cDateReception">
+                </div>
+                <div class="form-group">
+                    <label>Nom</label>
+                    <input type="text" id="cNom" placeholder="Nom">
+                </div>
+                <div class="form-group">
+                    <label>Prénom</label>
+                    <input type="text" id="cPrenom" placeholder="Prénom">
+                </div>
+                <div class="form-group">
+                    <label>Téléphone</label>
+                    <input type="tel" id="cTelephone" placeholder="06 00 00 00 00">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="cEmail" placeholder="email@exemple.com">
+                </div>
+                <div class="form-group">
+                    <label>Ville actuelle</label>
+                    <input type="text" id="cVille" placeholder="Ville">
+                </div>
+                <div class="form-group">
+                    <label>Région</label>
+                    <input type="text" id="cRegion" placeholder="Région">
+                </div>
+                <div class="form-group">
+                    <label>Pays</label>
+                    <input type="text" id="cPays" placeholder="France" value="France">
+                </div>
+            </div>
+
+            <div class="form-section-title"><i class="fas fa-briefcase"></i> Recherche professionnelle</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Poste actuel</label>
+                    <input type="text" id="cPosteActuel" placeholder="Poste actuel">
+                </div>
+                <div class="form-group">
+                    <label>Poste recherché</label>
+                    <input type="text" id="cPosteRecherche" placeholder="Poste recherché">
+                </div>
+                <div class="form-group">
+                    <label>Zone géographique recherchée</label>
+                    <select id="cZone"></select>
+                </div>
+                <div class="form-group">
+                    <label>Niveau d'étude</label>
+                    <select id="cNiveauEtude"></select>
+                </div>
+                <div class="form-group">
+                    <label>Niveau d'expérience</label>
+                    <select id="cExperience"></select>
+                </div>
+                <div class="form-group">
+                    <label>Disponibilité</label>
+                    <select id="cDisponibilite">
+                        <option value="">— Sélectionner —</option>
+                        <option>Immédiate</option>
+                        <option>Sous 1 mois</option>
+                        <option>Sous 3 mois</option>
+                        <option>Non précisé</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Télétravail</label>
+                    <select id="cTeletravail"></select>
+                </div>
+                <div class="form-group">
+                    <label>Contrat recherché</label>
+                    <select id="cContrat"></select>
+                </div>
+                <div class="form-group">
+                    <label>Secteur d'activité recherché</label>
+                    <select id="cSecteur"></select>
+                </div>
+                <div class="form-group">
+                    <label>Type d'employeur ciblé</label>
+                    <select id="cEmployeur"></select>
+                </div>
+            </div>
+
+            <div class="form-section-title"><i class="fas fa-star"></i> Compétences & Maîtrises</div>
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Compétences clés</label>
+                    <textarea id="cCompetences" placeholder="Ex: Vente, Négociation, Revenue Management, Yield..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>GDS maîtrisés</label>
+                    <div id="msGDS" class="multi-select-wrap" data-field="gds"></div>
+                </div>
+                <div class="form-group">
+                    <label>Logiciels maîtrisés</label>
+                    <div id="msLogiciels" class="multi-select-wrap" data-field="logiciels"></div>
+                </div>
+                <div class="form-group">
+                    <label>Langues maîtrisées</label>
+                    <div id="msLangues" class="multi-select-wrap" data-field="langues"></div>
+                </div>
+                <div class="form-group full-width">
+                    <label>Destinations maîtrisées</label>
+                    <textarea id="cDestinations" placeholder="Ex: Bassin méditerranéen, Asie du Sud-Est, Caraïbes..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-section-title"><i class="fas fa-cog"></i> Administration</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select id="cStatut">
+                        <option>Nouveau</option>
+                        <option>En cours de traitement</option>
+                        <option>Proposé à une entreprise</option>
+                        <option>Embauché</option>
+                        <option>Indisponible</option>
+                        <option>Archivé</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label>Commentaires</label>
+                    <textarea id="cCommentaires" placeholder="Notes internes..."></textarea>
+                </div>
+            </div>
+
+            <!-- PDF VIEWER -->
+            <div class="form-section-title"><i class="fas fa-file-pdf"></i> CV (PDF)</div>
+            <div id="autoScanBadge" style="display:none;margin-bottom:12px;">
+                <span style="background:#eaf2ff;color:var(--primary);padding:6px 14px;border-radius:20px;font-size:0.78rem;font-weight:600;">
+                    <i class="fas fa-robot"></i> Fiche créée automatiquement par le scan Drive
+                </span>
+            </div>
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Lien Google Drive du CV</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="url" id="cPdfUrl" placeholder="https://drive.google.com/file/d/XXXX/view" style="flex:1;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="previewDrivePdf()" title="Prévisualiser"><i class="fas fa-eye"></i></button>
+                    </div>
+                    <small style="color:var(--text-light);font-size:0.72rem;margin-top:4px;display:block;">Collez le lien de partage Google Drive (le fichier doit être en accès "Tous les utilisateurs avec le lien")</small>
+                </div>
+            </div>
+            <div class="pdf-viewer-panel" id="pdfViewerPanel">
+                <div class="no-pdf" id="noPdf">
+                    <i class="fas fa-file-pdf"></i>
+                    Aucun CV attaché
+                </div>
+                <iframe id="pdfViewer" style="display:none;" allow="autoplay"></iframe>
+            </div>
+
+            <!-- TEXTE BRUT DU CV (rempli par le scan automatique) -->
+            <div id="texteCvSection" style="display:none;">
+                <div class="form-section-title"><i class="fas fa-align-left"></i> Texte extrait du CV <small style="font-weight:400;font-size:0.75rem;color:var(--text-light);">(extraction automatique — à utiliser pour remplir les champs ci-dessus)</small></div>
+                <div style="position:relative;">
+                    <textarea id="cTexteCv" readonly style="width:100%;min-height:300px;padding:14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:'Poppins',sans-serif;font-size:0.82rem;background:#f8f9fb;color:var(--text);resize:vertical;line-height:1.6;"></textarea>
+                    <button class="btn btn-outline btn-sm" onclick="copyTexteCv()" style="position:absolute;top:8px;right:8px;">
+                        <i class="fas fa-copy"></i> Copier
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('modalCandidat')">Annuler</button>
+            <button class="btn btn-primary" onclick="saveCandidat()"><i class="fas fa-save"></i> Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL ENTREPRISE ==================== -->
+<div id="modalEntreprise" class="modal-overlay" onclick="if(event.target===this)closeModal('modalEntreprise')">
+    <div class="modal" style="max-width:560px;">
+        <div class="modal-header">
+            <h2 id="modalEntrepriseTitle">Nouvelle entreprise</h2>
+            <button class="modal-close" onclick="closeModal('modalEntreprise')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="entrepriseId">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Nom de l'entreprise</label>
+                    <input type="text" id="eNom" placeholder="Nom">
+                </div>
+                <div class="form-group">
+                    <label>Contact (nom)</label>
+                    <input type="text" id="eContact" placeholder="Nom du contact">
+                </div>
+                <div class="form-group">
+                    <label>Email de connexion</label>
+                    <input type="email" id="eEmail" placeholder="entreprise@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="text" id="ePassword" placeholder="Mot de passe">
+                </div>
+                <div class="form-group full-width">
+                    <label>Notes</label>
+                    <textarea id="eNotes" placeholder="Notes internes"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('modalEntreprise')">Annuler</button>
+            <button class="btn btn-primary" onclick="saveEntreprise()"><i class="fas fa-save"></i> Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL OFFRE ==================== -->
+<div id="modalOffre" class="modal-overlay" onclick="if(event.target===this)closeModal('modalOffre')">
+    <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+            <h2 id="modalOffreTitle">Nouvelle offre</h2>
+            <button class="modal-close" onclick="closeModal('modalOffre')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="offreId">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Entreprise</label>
+                    <select id="oEntreprise"></select>
+                </div>
+                <div class="form-group">
+                    <label>Intitulé du poste</label>
+                    <input type="text" id="oPoste" placeholder="Ex: Chef de produit Asie">
+                </div>
+                <div class="form-group">
+                    <label>Lieu</label>
+                    <input type="text" id="oLieu" placeholder="Paris">
+                </div>
+                <div class="form-group">
+                    <label>Type de contrat</label>
+                    <select id="oContrat"></select>
+                </div>
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select id="oStatut">
+                        <option>Ouverte</option>
+                        <option>Pourvue</option>
+                        <option>Fermée</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label>Description</label>
+                    <textarea id="oDescription" placeholder="Descriptif du poste, compétences recherchées..."></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('modalOffre')">Annuler</button>
+            <button class="btn btn-primary" onclick="saveOffre()"><i class="fas fa-save"></i> Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL ASSIGNATION ==================== -->
+<div id="modalAssign" class="modal-overlay" onclick="if(event.target===this)closeModal('modalAssign')">
+    <div class="modal" style="max-width:560px;">
+        <div class="modal-header">
+            <h2>Proposer des candidats</h2>
+            <button class="modal-close" onclick="closeModal('modalAssign')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="assign-section">
+                <h3>Candidats sélectionnés</h3>
+                <div class="candidate-chips" id="assignChips"></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Entreprise</label>
+                    <select id="assignEntreprise" onchange="loadOffresForEntreprise()"></select>
+                </div>
+                <div class="form-group full-width">
+                    <label>Offre d'emploi</label>
+                    <select id="assignOffre"></select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('modalAssign')">Annuler</button>
+            <button class="btn btn-success" onclick="saveAssignation()"><i class="fas fa-paper-plane"></i> Proposer</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL CONFIRM DELETE ==================== -->
+<div id="modalConfirm" class="modal-overlay" onclick="if(event.target===this)closeModal('modalConfirm')">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header">
+            <h2>Confirmer la suppression</h2>
+            <button class="modal-close" onclick="closeModal('modalConfirm')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage">Êtes-vous sûr de vouloir supprimer cet élément ?</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('modalConfirm')">Annuler</button>
+            <button class="btn btn-danger" id="confirmDeleteBtn">Supprimer</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <span style="color:var(--primary);font-weight:500;">Chargement...</span>
+</div>
+
+
+<!-- ==================== FIREBASE SDK ==================== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+
+<script>
+// ========================================================================
+//  CONFIGURATION FIREBASE — À REMPLACER AVEC TES PROPRES VALEURS
+// ========================================================================
+const firebaseConfig = {
+    apiKey: "AIzaSyAODxlttlg4J1mdx4kPzD-QUDHXZgnJdc0",
+    authDomain: "welcometothetravel-cv.firebaseapp.com",
+    projectId: "welcometothetravel-cv",
+    messagingSenderId: "479498287926",
+    appId: "1:479498287926:web:650b99648949e64a72d197"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ========================================================================
+//  LISTES PRÉDÉFINIES
+// ========================================================================
+const LISTES = {
+    zones: ["France entière","Île-de-France","Nord","Nord-Est","Nord-Ouest","Sud-Est","Sud-Ouest","Centre","DROM-COM","Europe","International","Indifférent"],
+    niveauxEtude: ["Bac","Bac+2 (BTS/DUT)","Bac+3 (Licence)","Bac+4 (Maîtrise)","Bac+5 (Master/École)","Bac+6 et plus (Doctorat)","Autodidacte","Non précisé"],
+    experiences: ["Débutant (0-1 an)","Junior (1-3 ans)","Confirmé (3-5 ans)","Sénior (5-10 ans)","Expert (10+ ans)","Non précisé"],
+    teletravail: ["100% télétravail","Télétravail partiel","Présentiel uniquement","Flexible","Non précisé"],
+    contrats: ["CDI","CDD","Intérim","Freelance/Indépendant","Alternance","Stage","Saisonnier","Non précisé"],
+    gds: ["Amadeus","Galileo","Sabre","Worldspan","Apollo","Travelport","Travelsky","Autre"],
+    logiciels: ["Pack Office","Salesforce","Gestour","Orchestra","Travel Studio","Amadeus Selling Platform","GIATA","Canva","Adobe Creative Suite","WordPress","Google Workspace","SAP","CRM (autre)","ERP (autre)","Autre"],
+    secteurs: ["Tour-opérateur","Agence de voyages","Compagnie aérienne","Hôtellerie","Office de tourisme","Réceptif/DMC","Croisières","Transport","MICE/Événementiel","Technologie/GDS","Assurance voyage","Loisirs/Parcs","Luxe/Conciergerie","E-tourisme","Tourisme institutionnel","Autre"],
+    employeurs: ["Grand groupe","PME","Start-up","Indépendant/Franchise","Secteur public","Association/ONG","Indifférent"],
+    langues: ["Français","Anglais","Espagnol","Allemand","Italien","Portugais","Arabe","Chinois (Mandarin)","Russe","Japonais","Néerlandais","Autre"]
+};
+
+// ========================================================================
+//  STATE
+// ========================================================================
+let candidats = [];
+let entreprises = [];
+let offres = [];
+let assignations = [];
+let filteredCandidats = [];
+let selectedCandidatIds = new Set();
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let sortField = 'dateReception';
+let sortDir = 'desc';
+let currentUserRole = 'admin'; // 'admin' ou 'entreprise'
+let currentEntrepriseId = null;
+
+// Multi-select state
+let multiSelectState = {
+    gds: [],
+    logiciels: [],
+    langues: []
+};
+
+// ========================================================================
+//  AUTH
+// ========================================================================
+auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appMain').style.display = 'block';
+        document.getElementById('userEmail').textContent = user.email;
+
+        try {
+            // Check if user is admin
+            const adminDoc = await db.collection('admins').doc(user.uid).get();
+            if (adminDoc.exists) {
+                currentUserRole = 'admin';
+                initAdminView();
+                return;
+            }
+
+            // Check if enterprise via roles collection
+            const roleDoc = await db.collection('roles').doc(user.uid).get();
+            if (roleDoc.exists && roleDoc.data().role === 'entreprise') {
+                currentUserRole = 'entreprise';
+                currentEntrepriseId = roleDoc.data().entrepriseId;
+                initEntrepriseView();
+                return;
+            }
+
+            showToast('Accès refusé. Compte non autorisé.', 'error');
+            auth.signOut();
+        } catch (e) {
+            console.error('Auth check error:', e);
+            showToast('Erreur de vérification des droits', 'error');
+            auth.signOut();
+        }
+    } else {
+        document.getElementById('authScreen').style.display = 'flex';
+        document.getElementById('appMain').style.display = 'none';
+    }
+});
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errDiv = document.getElementById('authError');
+    errDiv.style.display = 'none';
+
+    if (!email || !password) {
+        errDiv.textContent = 'Veuillez remplir tous les champs.';
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+    } catch (e) {
+        errDiv.textContent = 'Email ou mot de passe incorrect.';
+        errDiv.style.display = 'block';
+    }
+}
+
+function handleLogout() {
+    auth.signOut();
+}
+
+// ========================================================================
+//  INIT
+// ========================================================================
+function initAdminView() {
+    populateSelectOptions();
+    initMultiSelects();
+    loadAllData();
+}
+
+function initEntrepriseView() {
+    // Hide admin-only sidebar items
+    document.querySelector('[data-section="candidats"]').style.display = 'none';
+    document.querySelector('[data-section="entreprises"]').style.display = 'none';
+    document.querySelector('[data-section="assignations"]').style.display = 'none';
+    document.querySelector('[data-section="offres"]').style.display = 'none';
+
+    // Add enterprise dashboard link
+    const dashLink = document.createElement('a');
+    dashLink.className = 'active';
+    dashLink.setAttribute('data-section', 'ent-dashboard');
+    dashLink.onclick = () => showSection('ent-dashboard');
+    dashLink.innerHTML = '<i class="fas fa-th-large"></i> Tableau de bord';
+    document.querySelector('.sidebar-menu').prepend(dashLink);
+
+    // Hide all admin sections, show enterprise dashboard
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-ent-dashboard').classList.add('active');
+
+    // Load enterprise data
+    loadEntrepriseData();
+}
+
+function populateSelectOptions() {
+    populateSelect('cZone', LISTES.zones);
+    populateSelect('cNiveauEtude', LISTES.niveauxEtude);
+    populateSelect('cExperience', LISTES.experiences);
+    populateSelect('cTeletravail', LISTES.teletravail);
+    populateSelect('cContrat', LISTES.contrats);
+    populateSelect('cSecteur', LISTES.secteurs);
+    populateSelect('cEmployeur', LISTES.employeurs);
+    populateSelect('oContrat', LISTES.contrats);
+
+    // Filters
+    populateFilterSelect('filterZone', LISTES.zones);
+    populateFilterSelect('filterExperience', LISTES.experiences);
+    populateFilterSelect('filterContrat', LISTES.contrats);
+    populateFilterSelect('filterSecteur', LISTES.secteurs);
+    populateFilterSelect('filterTeletravail', LISTES.teletravail);
+    populateFilterSelect('filterLangue', LISTES.langues);
+    populateFilterSelect('filterGDS', LISTES.gds);
+    populateFilterSelect('filterEmployeur', LISTES.employeurs);
+}
+
+function populateSelect(id, options) {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— Sélectionner —</option>';
+    options.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = o;
+        sel.appendChild(opt);
+    });
+}
+
+function populateFilterSelect(id, options) {
+    const sel = document.getElementById(id);
+    options.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = o;
+        sel.appendChild(opt);
+    });
+}
+
+// ========================================================================
+//  MULTI SELECT COMPONENT
+// ========================================================================
+function initMultiSelects() {
+    initMultiSelect('msGDS', LISTES.gds, 'gds');
+    initMultiSelect('msLogiciels', LISTES.logiciels, 'logiciels');
+    initMultiSelect('msLangues', LISTES.langues, 'langues');
+}
+
+function initMultiSelect(containerId, options, field) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    const input = document.createElement('input');
+    input.className = 'ms-input';
+    input.placeholder = 'Ajouter...';
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'ms-dropdown';
+
+    options.forEach(opt => {
+        const div = document.createElement('div');
+        div.className = 'ms-option';
+        div.textContent = opt;
+        div.onclick = (e) => {
+            e.stopPropagation();
+            toggleMultiSelectValue(field, opt, containerId, options);
+        };
+        dropdown.appendChild(div);
+    });
+
+    container.appendChild(input);
+    container.appendChild(dropdown);
+
+    input.addEventListener('focus', () => { dropdown.classList.add('open'); });
+    input.addEventListener('input', () => {
+        const val = input.value.toLowerCase();
+        dropdown.querySelectorAll('.ms-option').forEach(o => {
+            o.style.display = o.textContent.toLowerCase().includes(val) ? '' : 'none';
+        });
+    });
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && input.value.trim()) {
+            e.preventDefault();
+            const val = input.value.trim();
+            if (!multiSelectState[field].includes(val)) {
+                multiSelectState[field].push(val);
+                renderMultiSelect(field, containerId, options);
+            }
+            input.value = '';
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove('open');
+        }
+    });
+}
+
+function toggleMultiSelectValue(field, value, containerId, options) {
+    const idx = multiSelectState[field].indexOf(value);
+    if (idx > -1) {
+        multiSelectState[field].splice(idx, 1);
+    } else {
+        multiSelectState[field].push(value);
+    }
+    renderMultiSelect(field, containerId, options);
+}
+
+function renderMultiSelect(field, containerId, options) {
+    const container = document.getElementById(containerId);
+    // Remove existing tags
+    container.querySelectorAll('.ms-tag').forEach(t => t.remove());
+
+    const input = container.querySelector('.ms-input');
+    multiSelectState[field].forEach(val => {
+        const tag = document.createElement('span');
+        tag.className = 'ms-tag';
+        tag.innerHTML = `${val} <span class="ms-remove" onclick="removeMultiSelectValue('${field}','${val}','${containerId}')">&times;</span>`;
+        container.insertBefore(tag, input);
+    });
+
+    // Update dropdown selected state
+    container.querySelectorAll('.ms-option').forEach(o => {
+        o.classList.toggle('selected', multiSelectState[field].includes(o.textContent));
+    });
+}
+
+function removeMultiSelectValue(field, value, containerId) {
+    multiSelectState[field] = multiSelectState[field].filter(v => v !== value);
+    const options = field === 'gds' ? LISTES.gds : field === 'logiciels' ? LISTES.logiciels : LISTES.langues;
+    renderMultiSelect(field, containerId, options);
+}
+
+// ========================================================================
+//  DATA LOADING
+// ========================================================================
+async function loadAllData() {
+    showLoading(true);
+    try {
+        await Promise.all([
+            loadCandidats(),
+            loadEntreprises(),
+            loadOffres(),
+            loadAssignations()
+        ]);
+    } catch (e) {
+        console.error('Error loading data:', e);
+        showToast('Erreur de chargement des données', 'error');
+    }
+    showLoading(false);
+}
+
+async function loadCandidats() {
+    const snap = await db.collection('candidats').orderBy('dateReception', 'desc').get();
+    candidats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    filteredCandidats = [...candidats];
+    document.getElementById('totalCandidats').textContent = candidats.length;
+    renderCandidatsTable();
+}
+
+async function loadEntreprises() {
+    const snap = await db.collection('entreprises').orderBy('nom').get();
+    entreprises = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderEntreprises();
+    populateEntrepriseSelects();
+}
+
+async function loadOffres() {
+    const snap = await db.collection('offres').orderBy('createdAt', 'desc').get();
+    offres = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderOffres();
+}
+
+async function loadAssignations() {
+    const snap = await db.collection('assignations').orderBy('dateAssignation', 'desc').get();
+    assignations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderAssignations();
+}
+
+async function loadEntrepriseData() {
+    showLoading(true);
+    try {
+        // Load enterprise info
+        const entDoc = await db.collection('entreprises').doc(currentEntrepriseId).get();
+        const entData = entDoc.exists ? entDoc.data() : {};
+        document.getElementById('entWelcomeName').textContent = entData.nom || 'Bienvenue';
+
+        // Load offres for this enterprise
+        const offresSnap = await db.collection('offres').where('entrepriseId', '==', currentEntrepriseId).get();
+        offres = offresSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        document.getElementById('entTotalOffres').textContent = offres.length;
+
+        // Load assignations for these offres
+        const offreIds = offres.map(o => o.id);
+        assignations = [];
+        candidats = [];
+
+        if (offreIds.length > 0) {
+            // Firestore 'in' is limited to 30, batch if needed
+            for (let i = 0; i < offreIds.length; i += 30) {
+                const batch = offreIds.slice(i, i + 30);
+                const assignSnap = await db.collection('assignations').where('offreId', 'in', batch).get();
+                assignations.push(...assignSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+
+            // Load assigned candidates
+            const candidatIds = [...new Set(assignations.map(a => a.candidatId))];
+            document.getElementById('entTotalCandidats').textContent = candidatIds.length;
+
+            if (candidatIds.length > 0) {
+                for (let i = 0; i < candidatIds.length; i += 10) {
+                    const batch = candidatIds.slice(i, i + 10);
+                    const promises = batch.map(id => db.collection('candidats').doc(id).get());
+                    const docs = await Promise.all(promises);
+                    candidats.push(...docs.filter(d => d.exists).map(d => ({ id: d.id, ...d.data() })));
+                }
+            }
+        } else {
+            document.getElementById('entTotalCandidats').textContent = '0';
+        }
+
+        renderEntrepriseDashboard();
+    } catch (e) {
+        console.error('Error loading enterprise data:', e);
+        showToast('Erreur de chargement des données', 'error');
+    }
+    showLoading(false);
+}
+
+// ========================================================================
+//  ENTERPRISE DASHBOARD RENDERING
+// ========================================================================
+function renderEntrepriseDashboard() {
+    const container = document.getElementById('entOffresContainer');
+
+    if (offres.length === 0) {
+        container.innerHTML = `<div class="empty-state">
+            <i class="fas fa-briefcase"></i>
+            <h3>Aucune offre pour le moment</h3>
+            <p>Les offres et candidats proposés apparaîtront ici.</p>
+        </div>`;
+        return;
+    }
+
+    container.innerHTML = offres.map(offre => {
+        const offreAssigns = assignations.filter(a => a.offreId === offre.id);
+        const offreCandidats = offreAssigns.map(a => {
+            return candidats.find(c => c.id === a.candidatId);
+        }).filter(Boolean);
+
+        const statusColor = offre.statut === 'Ouverte' ? '#27ae60' : offre.statut === 'Pourvue' ? '#3498db' : '#95a5a6';
+
+        let candidatsHtml = '';
+        if (offreCandidats.length === 0) {
+            candidatsHtml = `<div class="ent-no-candidats">
+                <i class="fas fa-clock" style="font-size:1.5rem;display:block;margin-bottom:8px;opacity:0.4;"></i>
+                Aucun candidat proposé pour cette offre pour le moment
+            </div>`;
+        } else {
+            candidatsHtml = offreCandidats.map(c => {
+                const langues = (c.langues || []).slice(0, 3);
+                return `<div class="ent-candidat-row">
+                    <div class="ent-candidat-info">
+                        <div class="name">${esc(c.prenom || '')} ${esc(c.nom || '')}</div>
+                        <div class="details">
+                            ${c.posteRecherche ? `<span><i class="fas fa-briefcase"></i> ${esc(c.posteRecherche)}</span>` : ''}
+                            ${c.ville ? `<span><i class="fas fa-map-marker-alt"></i> ${esc(c.ville)}</span>` : ''}
+                            ${c.experience ? `<span><i class="fas fa-clock"></i> ${esc(c.experience)}</span>` : ''}
+                            ${c.disponibilite ? `<span><i class="fas fa-calendar-check"></i> ${esc(c.disponibilite)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="ent-candidat-tags">
+                        ${langues.map(l => `<span class="ent-tag">${esc(l)}</span>`).join('')}
+                        ${c.contrat ? `<span class="ent-tag" style="background:#fff3e6;color:var(--accent);">${esc(c.contrat)}</span>` : ''}
+                    </div>
+                    <div class="ent-candidat-actions">
+                        <button class="btn btn-primary btn-sm" onclick="showEntCandidatDetail('${c.id}')">
+                            <i class="fas fa-eye"></i> Voir la fiche
+                        </button>
+                        ${c.pdfUrl ? `<button class="btn btn-accent btn-sm" onclick="window.open(getDriveViewUrl('${c.pdfUrl}'),'_blank')">
+                            <i class="fas fa-file-pdf"></i> CV
+                        </button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        return `<div class="ent-offre-card">
+            <div class="ent-offre-header">
+                <div>
+                    <h3>${esc(offre.poste)}</h3>
+                    <div class="offre-meta" style="margin-top:6px;">
+                        ${offre.lieu ? `<span><i class="fas fa-map-marker-alt"></i> ${esc(offre.lieu)}</span>` : ''}
+                        ${offre.contrat ? `<span><i class="fas fa-file-contract"></i> ${esc(offre.contrat)}</span>` : ''}
+                        <span><i class="fas fa-circle" style="font-size:0.5rem;color:${statusColor};"></i> ${esc(offre.statut)}</span>
+                    </div>
+                </div>
+                <span class="candidat-count"><i class="fas fa-users"></i> ${offreCandidats.length} candidat(s)</span>
+            </div>
+            ${offre.description ? `<div style="padding:16px 24px;background:#f8f9fb;font-size:0.84rem;color:var(--text-light);border-bottom:1px solid var(--border);">${esc(offre.description)}</div>` : ''}
+            <div class="ent-candidat-list">${candidatsHtml}</div>
+        </div>`;
+    }).join('');
+}
+
+function showEntCandidatDetail(candidatId) {
+    const c = candidats.find(x => x.id === candidatId);
+    if (!c) return;
+
+    document.getElementById('entCandidatTitle').innerHTML = `<i class="fas fa-user"></i> ${esc(c.prenom || '')} ${esc(c.nom || '')}`;
+
+    const detailHtml = `
+        <div class="candidat-detail-grid">
+            <div>
+                <div class="detail-section">
+                    <div class="detail-section-title"><i class="fas fa-user"></i> Informations personnelles</div>
+                    ${detailRow('Nom', `${c.prenom || ''} ${c.nom || ''}`)}
+                    ${detailRow('Email', c.email)}
+                    ${detailRow('Téléphone', c.telephone)}
+                    ${detailRow('Ville', c.ville)}
+                    ${detailRow('Région', c.region)}
+                    ${detailRow('Pays', c.pays)}
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title"><i class="fas fa-briefcase"></i> Recherche professionnelle</div>
+                    ${detailRow('Poste actuel', c.posteActuel)}
+                    ${detailRow('Poste recherché', c.posteRecherche)}
+                    ${detailRow('Zone géographique', c.zone)}
+                    ${detailRow('Niveau d\'étude', c.niveauEtude)}
+                    ${detailRow('Expérience', c.experience)}
+                    ${detailRow('Disponibilité', c.disponibilite)}
+                    ${detailRow('Télétravail', c.teletravail)}
+                    ${detailRow('Contrat recherché', c.contrat)}
+                    ${detailRow('Secteur', c.secteur)}
+                    ${detailRow('Type d\'employeur', c.employeur)}
+                </div>
+            </div>
+
+            <div>
+                <div class="detail-section">
+                    <div class="detail-section-title"><i class="fas fa-star"></i> Compétences & Maîtrises</div>
+                    ${detailRow('Compétences', c.competences)}
+                    ${detailRow('GDS', (c.gds || []).join(', '))}
+                    ${detailRow('Logiciels', (c.logiciels || []).join(', '))}
+                    ${detailRow('Langues', (c.langues || []).join(', '))}
+                    ${detailRow('Destinations', c.destinations)}
+                </div>
+
+                ${c.pdfUrl ? `<div class="detail-section">
+                    <div class="detail-section-title"><i class="fas fa-file-pdf"></i> CV</div>
+                    <iframe src="${getDriveEmbedUrl(c.pdfUrl)}" style="width:100%;height:500px;border:none;border-radius:var(--radius-sm);"></iframe>
+                </div>` : ''}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('entCandidatDetail').innerHTML = detailHtml;
+    showSection('ent-candidat');
+}
+
+function detailRow(label, value) {
+    if (!value) return '';
+    return `<div class="detail-row">
+        <span class="detail-label">${label}</span>
+        <span class="detail-value">${esc(value)}</span>
+    </div>`;
+}
+
+// ========================================================================
+//  RENDER CANDIDATS TABLE
+// ========================================================================
+function renderCandidatsTable() {
+    const tbody = document.getElementById('candidatsTable');
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageData = filteredCandidats.slice(start, start + PAGE_SIZE);
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-light);">
+            <i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:10px;opacity:0.3;"></i>
+            Aucun candidat trouvé</td></tr>`;
+    } else {
+        tbody.innerHTML = pageData.map(c => {
+            const statusClass = getStatusClass(c.statut);
+            const checked = selectedCandidatIds.has(c.id) ? 'checked' : '';
+            return `<tr>
+                <td class="td-check"><input type="checkbox" ${checked} onchange="toggleCandidatCheck('${c.id}', this)"></td>
+                <td class="td-name">${esc(c.nom || '')} ${esc(c.prenom || '')}</td>
+                <td>${esc(c.posteRecherche || '—')}</td>
+                <td>${esc(c.ville || '—')}</td>
+                <td>${esc(c.experience || '—')}</td>
+                <td>${esc(c.contrat || '—')}</td>
+                <td><span class="td-status ${statusClass}">${esc(c.statut || 'Nouveau')}</span></td>
+                <td>${c.dateReception ? formatDate(c.dateReception) : '—'}</td>
+                <td class="td-actions">
+                    <button class="btn-edit" title="Modifier" onclick="editCandidat('${c.id}')"><i class="fas fa-pen"></i></button>
+                    ${c.pdfUrl ? `<button class="btn-view-pdf" title="Voir CV" onclick="window.open(getDriveViewUrl('${c.pdfUrl}'),'_blank')"><i class="fas fa-file-pdf"></i></button>` : ''}
+                    ${currentUserRole === 'admin' ? `<button class="btn-delete" title="Supprimer" onclick="confirmDeleteCandidat('${c.id}')"><i class="fas fa-trash"></i></button>` : ''}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    document.getElementById('tableInfo').textContent = `${filteredCandidats.length} candidat(s)`;
+    renderPagination();
+    updateBulkActions();
+}
+
+function renderPagination() {
+    const totalPages = Math.ceil(filteredCandidats.length / PAGE_SIZE);
+    const container = document.getElementById('pagination');
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+    let html = '';
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+function goToPage(p) {
+    currentPage = p;
+    renderCandidatsTable();
+}
+
+function getStatusClass(statut) {
+    const map = {
+        'Nouveau': 'status-nouveau',
+        'En cours de traitement': 'status-en-cours',
+        'Proposé à une entreprise': 'status-propose',
+        'Embauché': 'status-embauche',
+        'Indisponible': 'status-indisponible',
+        'Archivé': 'status-archive'
+    };
+    return map[statut] || 'status-nouveau';
+}
+
+// ========================================================================
+//  FILTERING & SORTING
+// ========================================================================
+function filterCandidats() {
+    const search = document.getElementById('searchGlobal').value.toLowerCase();
+    const fStatut = document.getElementById('filterStatut').value;
+    const fZone = document.getElementById('filterZone').value;
+    const fExp = document.getElementById('filterExperience').value;
+    const fContrat = document.getElementById('filterContrat').value;
+    const fSecteur = document.getElementById('filterSecteur').value;
+    const fTele = document.getElementById('filterTeletravail').value;
+    const fLangue = document.getElementById('filterLangue').value;
+    const fGDS = document.getElementById('filterGDS').value;
+    const fEmployeur = document.getElementById('filterEmployeur').value;
+    const fDispo = document.getElementById('filterDispo').value;
+
+    filteredCandidats = candidats.filter(c => {
+        // Text search
+        if (search) {
+            const searchStr = [
+                c.nom, c.prenom, c.posteRecherche, c.posteActuel,
+                c.ville, c.region, c.competences, c.destinations,
+                ...(c.gds || []), ...(c.logiciels || []), ...(c.langues || [])
+            ].filter(Boolean).join(' ').toLowerCase();
+            if (!searchStr.includes(search)) return false;
+        }
+        if (fStatut && c.statut !== fStatut) return false;
+        if (fZone && c.zone !== fZone) return false;
+        if (fExp && c.experience !== fExp) return false;
+        if (fContrat && c.contrat !== fContrat) return false;
+        if (fSecteur && c.secteur !== fSecteur) return false;
+        if (fTele && c.teletravail !== fTele) return false;
+        if (fLangue && !(c.langues || []).includes(fLangue)) return false;
+        if (fGDS && !(c.gds || []).includes(fGDS)) return false;
+        if (fEmployeur && c.employeur !== fEmployeur) return false;
+        if (fDispo && c.disponibilite !== fDispo) return false;
+        return true;
+    });
+
+    // Apply sort
+    sortCandidats();
+    currentPage = 1;
+    renderCandidatsTable();
+}
+
+function sortTable(field) {
+    if (sortField === field) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortField = field;
+        sortDir = 'asc';
+    }
+    sortCandidats();
+    renderCandidatsTable();
+}
+
+function sortCandidats() {
+    filteredCandidats.sort((a, b) => {
+        let va = a[sortField] || '';
+        let vb = b[sortField] || '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
+
+function toggleFilters() {
+    document.getElementById('advancedFilters').classList.toggle('open');
+}
+
+function resetFilters() {
+    document.getElementById('searchGlobal').value = '';
+    document.getElementById('filterStatut').value = '';
+    document.getElementById('filterZone').value = '';
+    document.getElementById('filterExperience').value = '';
+    document.getElementById('filterContrat').value = '';
+    document.getElementById('filterSecteur').value = '';
+    document.getElementById('filterTeletravail').value = '';
+    document.getElementById('filterLangue').value = '';
+    document.getElementById('filterGDS').value = '';
+    document.getElementById('filterEmployeur').value = '';
+    document.getElementById('filterDispo').value = '';
+    filterCandidats();
+}
+
+// ========================================================================
+//  CANDIDAT FORM
+// ========================================================================
+function openCandidatForm(data = null) {
+    document.getElementById('candidatId').value = data ? data.id : '';
+    document.getElementById('modalCandidatTitle').textContent = data ? 'Modifier le candidat' : 'Nouveau candidat';
+
+    // Reset form
+    document.getElementById('cDateReception').value = data?.dateReception || new Date().toISOString().split('T')[0];
+    document.getElementById('cNom').value = data?.nom || '';
+    document.getElementById('cPrenom').value = data?.prenom || '';
+    document.getElementById('cTelephone').value = data?.telephone || '';
+    document.getElementById('cEmail').value = data?.email || '';
+    document.getElementById('cVille').value = data?.ville || '';
+    document.getElementById('cRegion').value = data?.region || '';
+    document.getElementById('cPays').value = data?.pays || 'France';
+    document.getElementById('cPosteActuel').value = data?.posteActuel || '';
+    document.getElementById('cPosteRecherche').value = data?.posteRecherche || '';
+    document.getElementById('cZone').value = data?.zone || '';
+    document.getElementById('cNiveauEtude').value = data?.niveauEtude || '';
+    document.getElementById('cExperience').value = data?.experience || '';
+    document.getElementById('cDisponibilite').value = data?.disponibilite || '';
+    document.getElementById('cTeletravail').value = data?.teletravail || '';
+    document.getElementById('cContrat').value = data?.contrat || '';
+    document.getElementById('cSecteur').value = data?.secteur || '';
+    document.getElementById('cEmployeur').value = data?.employeur || '';
+    document.getElementById('cCompetences').value = data?.competences || '';
+    document.getElementById('cDestinations').value = data?.destinations || '';
+    document.getElementById('cStatut').value = data?.statut || 'Nouveau';
+    document.getElementById('cCommentaires').value = data?.commentaires || '';
+    document.getElementById('cPdfUrl').value = data?.pdfUrl || '';
+
+    // Auto-scan badge
+    document.getElementById('autoScanBadge').style.display = data?.source === 'auto-scan' ? 'block' : 'none';
+
+    // Texte brut du CV
+    if (data?.texteCv) {
+        document.getElementById('texteCvSection').style.display = 'block';
+        document.getElementById('cTexteCv').value = data.texteCv;
+    } else {
+        document.getElementById('texteCvSection').style.display = 'none';
+        document.getElementById('cTexteCv').value = '';
+    }
+
+    // Multi-selects
+    multiSelectState.gds = data?.gds ? [...data.gds] : [];
+    multiSelectState.logiciels = data?.logiciels ? [...data.logiciels] : [];
+    multiSelectState.langues = data?.langues ? [...data.langues] : [];
+    renderMultiSelect('gds', 'msGDS', LISTES.gds);
+    renderMultiSelect('logiciels', 'msLogiciels', LISTES.logiciels);
+    renderMultiSelect('langues', 'msLangues', LISTES.langues);
+
+    // PDF viewer
+    if (data?.pdfUrl) {
+        showDrivePdf(data.pdfUrl);
+    } else {
+        document.getElementById('pdfViewer').style.display = 'none';
+        document.getElementById('noPdf').style.display = 'block';
+    }
+
+    openModal('modalCandidat');
+}
+
+function editCandidat(id) {
+    const c = candidats.find(x => x.id === id);
+    if (c) openCandidatForm(c);
+}
+
+async function saveCandidat() {
+    const id = document.getElementById('candidatId').value;
+    const data = {
+        dateReception: document.getElementById('cDateReception').value,
+        nom: document.getElementById('cNom').value.trim(),
+        prenom: document.getElementById('cPrenom').value.trim(),
+        telephone: document.getElementById('cTelephone').value.trim(),
+        email: document.getElementById('cEmail').value.trim(),
+        ville: document.getElementById('cVille').value.trim(),
+        region: document.getElementById('cRegion').value.trim(),
+        pays: document.getElementById('cPays').value.trim(),
+        posteActuel: document.getElementById('cPosteActuel').value.trim(),
+        posteRecherche: document.getElementById('cPosteRecherche').value.trim(),
+        zone: document.getElementById('cZone').value,
+        niveauEtude: document.getElementById('cNiveauEtude').value,
+        experience: document.getElementById('cExperience').value,
+        disponibilite: document.getElementById('cDisponibilite').value,
+        teletravail: document.getElementById('cTeletravail').value,
+        contrat: document.getElementById('cContrat').value,
+        secteur: document.getElementById('cSecteur').value,
+        employeur: document.getElementById('cEmployeur').value,
+        competences: document.getElementById('cCompetences').value.trim(),
+        gds: [...multiSelectState.gds],
+        logiciels: [...multiSelectState.logiciels],
+        langues: [...multiSelectState.langues],
+        destinations: document.getElementById('cDestinations').value.trim(),
+        statut: document.getElementById('cStatut').value,
+        commentaires: document.getElementById('cCommentaires').value.trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (!data.nom) {
+        showToast('Le nom est obligatoire', 'error');
+        return;
+    }
+
+    // Google Drive PDF URL
+    const pdfUrl = document.getElementById('cPdfUrl').value.trim();
+    if (pdfUrl) {
+        data.pdfUrl = pdfUrl;
+    }
+
+    showLoading(true);
+
+    try {
+        if (id) {
+            await db.collection('candidats').doc(id).update(data);
+            showToast('Candidat mis à jour');
+        } else {
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection('candidats').add(data);
+            showToast('Candidat ajouté');
+        }
+
+        closeModal('modalCandidat');
+        await loadCandidats();
+        filterCandidats();
+    } catch (e) {
+        console.error(e);
+        showToast('Erreur lors de l\'enregistrement', 'error');
+    }
+
+    showLoading(false);
+}
+
+function confirmDeleteCandidat(id) {
+    document.getElementById('confirmMessage').textContent = 'Supprimer ce candidat et son CV ? Cette action est irréversible.';
+    document.getElementById('confirmDeleteBtn').onclick = async () => {
+        showLoading(true);
+        try {
+            // Delete related assignations
+            const assignSnap = await db.collection('assignations').where('candidatId', '==', id).get();
+            const batch = db.batch();
+            assignSnap.docs.forEach(d => batch.delete(d.ref));
+            batch.delete(db.collection('candidats').doc(id));
+            await batch.commit();
+
+            showToast('Candidat supprimé');
+            closeModal('modalConfirm');
+            await loadAllData();
+        } catch (e) {
+            showToast('Erreur de suppression', 'error');
+        }
+        showLoading(false);
+    };
+    openModal('modalConfirm');
+}
+
+// ========================================================================
+//  SELECTION / BULK ACTIONS
+// ========================================================================
+function toggleCandidatCheck(id, checkbox) {
+    if (checkbox.checked) {
+        selectedCandidatIds.add(id);
+    } else {
+        selectedCandidatIds.delete(id);
+    }
+    updateBulkActions();
+}
+
+function toggleAllChecks(masterCheckbox) {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageData = filteredCandidats.slice(start, start + PAGE_SIZE);
+
+    pageData.forEach(c => {
+        if (masterCheckbox.checked) {
+            selectedCandidatIds.add(c.id);
+        } else {
+            selectedCandidatIds.delete(c.id);
+        }
+    });
+    renderCandidatsTable();
+}
+
+function updateBulkActions() {
+    const bulkDiv = document.getElementById('bulkActions');
+    const count = selectedCandidatIds.size;
+    if (count > 0 && currentUserRole === 'admin') {
+        bulkDiv.style.display = 'block';
+        document.getElementById('selectedCount').textContent = count;
+    } else {
+        bulkDiv.style.display = 'none';
+    }
+}
+
+// ========================================================================
+//  ASSIGNATION
+// ========================================================================
+function openAssignModal() {
+    const chips = document.getElementById('assignChips');
+    chips.innerHTML = '';
+    selectedCandidatIds.forEach(id => {
+        const c = candidats.find(x => x.id === id);
+        if (c) {
+            chips.innerHTML += `<span class="candidate-chip">${esc(c.prenom)} ${esc(c.nom)}</span>`;
+        }
+    });
+    populateEntrepriseSelects();
+    document.getElementById('assignOffre').innerHTML = '<option value="">— Sélectionnez d\'abord une entreprise —</option>';
+    openModal('modalAssign');
+}
+
+function populateEntrepriseSelects() {
+    ['oEntreprise', 'assignEntreprise'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = '<option value="">— Sélectionner —</option>';
+        entreprises.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.textContent = e.nom;
+            sel.appendChild(opt);
+        });
+    });
+}
+
+function loadOffresForEntreprise() {
+    const entId = document.getElementById('assignEntreprise').value;
+    const sel = document.getElementById('assignOffre');
+    sel.innerHTML = '<option value="">— Sélectionner une offre —</option>';
+
+    const entOffres = offres.filter(o => o.entrepriseId === entId && o.statut === 'Ouverte');
+    entOffres.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.poste;
+        sel.appendChild(opt);
+    });
+}
+
+async function saveAssignation() {
+    const offreId = document.getElementById('assignOffre').value;
+    const entId = document.getElementById('assignEntreprise').value;
+
+    if (!offreId || !entId) {
+        showToast('Sélectionnez une entreprise et une offre', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const batch = db.batch();
+        for (const candidatId of selectedCandidatIds) {
+            // Check if already assigned
+            const existing = assignations.find(a => a.candidatId === candidatId && a.offreId === offreId);
+            if (!existing) {
+                const ref = db.collection('assignations').doc();
+                batch.set(ref, {
+                    candidatId,
+                    offreId,
+                    entrepriseId: entId,
+                    dateAssignation: new Date().toISOString(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                // Update candidate status
+                batch.update(db.collection('candidats').doc(candidatId), {
+                    statut: 'Proposé à une entreprise'
+                });
+            }
+        }
+        await batch.commit();
+
+        selectedCandidatIds.clear();
+        closeModal('modalAssign');
+        showToast('Candidats proposés avec succès');
+        await loadAllData();
+    } catch (e) {
+        console.error(e);
+        showToast('Erreur lors de l\'assignation', 'error');
+    }
+    showLoading(false);
+}
+
+// ========================================================================
+//  ENTREPRISES
+// ========================================================================
+function renderEntreprises() {
+    const grid = document.getElementById('entreprisesGrid');
+    if (entreprises.length === 0) {
+        grid.innerHTML = `<div class="empty-state"><i class="fas fa-building"></i><h3>Aucune entreprise</h3><p>Ajoutez votre première entreprise</p></div>`;
+        return;
+    }
+    grid.innerHTML = entreprises.map(e => {
+        const entOffres = offres.filter(o => o.entrepriseId === e.id);
+        return `<div class="enterprise-card">
+            <h3>${esc(e.nom)}</h3>
+            <div class="meta"><i class="fas fa-user"></i> ${esc(e.contact || '—')} &nbsp;|&nbsp; <i class="fas fa-envelope"></i> ${esc(e.email)}</div>
+            <div class="offers-count"><i class="fas fa-briefcase"></i> ${entOffres.length} offre(s)</div>
+            <div class="card-actions">
+                <button class="btn btn-outline btn-sm" onclick="editEntreprise('${e.id}')"><i class="fas fa-pen"></i> Modifier</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmDeleteEntreprise('${e.id}')"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openEntrepriseForm(data = null) {
+    document.getElementById('entrepriseId').value = data ? data.id : '';
+    document.getElementById('modalEntrepriseTitle').textContent = data ? 'Modifier l\'entreprise' : 'Nouvelle entreprise';
+    document.getElementById('eNom').value = data?.nom || '';
+    document.getElementById('eContact').value = data?.contact || '';
+    document.getElementById('eEmail').value = data?.email || '';
+    document.getElementById('ePassword').value = '';
+    document.getElementById('eNotes').value = data?.notes || '';
+    openModal('modalEntreprise');
+}
+
+function editEntreprise(id) {
+    const e = entreprises.find(x => x.id === id);
+    if (e) openEntrepriseForm(e);
+}
+
+async function saveEntreprise() {
+    const id = document.getElementById('entrepriseId').value;
+    const nom = document.getElementById('eNom').value.trim();
+    const contact = document.getElementById('eContact').value.trim();
+    const email = document.getElementById('eEmail').value.trim();
+    const password = document.getElementById('ePassword').value;
+    const notes = document.getElementById('eNotes').value.trim();
+
+    if (!nom || !email) {
+        showToast('Nom et email sont obligatoires', 'error');
+        return;
+    }
+
+    if (!id && !password) {
+        showToast('Le mot de passe est obligatoire pour une nouvelle entreprise', 'error');
+        return;
+    }
+
+    if (!id && password.length < 6) {
+        showToast('Le mot de passe doit contenir au moins 6 caractères', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const data = {
+            nom, contact, email, notes,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (id) {
+            await db.collection('entreprises').doc(id).update(data);
+            showToast('Entreprise mise à jour');
+        } else {
+            // Sauvegarder les identifiants admin actuels
+            const adminEmail = auth.currentUser.email;
+
+            // Créer le compte Firebase Auth pour l'entreprise
+            // (cela déconnecte temporairement l'admin)
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const newUid = userCredential.user.uid;
+
+            // Se reconnecter immédiatement en tant qu'admin
+            // On demande le mot de passe admin via prompt
+            let adminReconnected = false;
+            const adminPassword = prompt(`Le compte entreprise "${nom}" a été créé.\n\nPour finaliser, entrez votre mot de passe admin (${adminEmail}) pour vous reconnecter :`);
+            
+            if (adminPassword) {
+                try {
+                    await auth.signInWithEmailAndPassword(adminEmail, adminPassword);
+                    adminReconnected = true;
+                } catch (reconnectError) {
+                    console.error('Reconnexion admin échouée:', reconnectError);
+                }
+            }
+
+            // Sauvegarder l'entreprise dans Firestore
+            // (on le fait après la reconnexion admin pour avoir les droits)
+            if (adminReconnected) {
+                data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                data.authUid = newUid;
+                const entRef = await db.collection('entreprises').add(data);
+
+                // Créer le document dans la collection roles
+                await db.collection('roles').doc(newUid).set({
+                    role: 'entreprise',
+                    entrepriseId: entRef.id,
+                    email: email
+                });
+
+                showToast(`Entreprise "${nom}" créée avec son accès`);
+            } else {
+                showToast('Compte créé mais reconnexion admin échouée. Reconnectez-vous.', 'error');
+                showLoading(false);
+                return;
+            }
+        }
+
+        closeModal('modalEntreprise');
+        await loadEntreprises();
+    } catch (e) {
+        console.error(e);
+        if (e.code === 'auth/email-already-in-use') {
+            showToast('Cet email est déjà utilisé par un autre compte', 'error');
+        } else if (e.code === 'auth/invalid-email') {
+            showToast('Email invalide', 'error');
+        } else {
+            showToast('Erreur : ' + e.message, 'error');
+        }
+    }
+    showLoading(false);
+}
+
+function confirmDeleteEntreprise(id) {
+    document.getElementById('confirmMessage').textContent = 'Supprimer cette entreprise et toutes ses offres associées ?';
+    document.getElementById('confirmDeleteBtn').onclick = async () => {
+        showLoading(true);
+        try {
+            const batch = db.batch();
+            // Delete related offres
+            const offresSnap = await db.collection('offres').where('entrepriseId', '==', id).get();
+            offresSnap.docs.forEach(d => batch.delete(d.ref));
+            // Delete related assignations
+            const assignSnap = await db.collection('assignations').where('entrepriseId', '==', id).get();
+            assignSnap.docs.forEach(d => batch.delete(d.ref));
+            batch.delete(db.collection('entreprises').doc(id));
+            await batch.commit();
+
+            closeModal('modalConfirm');
+            showToast('Entreprise supprimée');
+            await loadAllData();
+        } catch (e) {
+            showToast('Erreur', 'error');
+        }
+        showLoading(false);
+    };
+    openModal('modalConfirm');
+}
+
+// ========================================================================
+//  OFFRES
+// ========================================================================
+function renderOffres() {
+    const tbody = document.getElementById('offresTable');
+    if (offres.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-light);">Aucune offre</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = offres.map(o => {
+        const ent = entreprises.find(e => e.id === o.entrepriseId);
+        const nbAssigned = assignations.filter(a => a.offreId === o.id).length;
+        const statusColor = o.statut === 'Ouverte' ? 'status-nouveau' : o.statut === 'Pourvue' ? 'status-embauche' : 'status-archive';
+        return `<tr>
+            <td>${esc(ent?.nom || '—')}</td>
+            <td class="td-name">${esc(o.poste)}</td>
+            <td>${esc(o.lieu || '—')}</td>
+            <td>${esc(o.contrat || '—')}</td>
+            <td><span class="td-status ${statusColor}">${esc(o.statut)}</span></td>
+            <td>${nbAssigned}</td>
+            <td class="td-actions">
+                <button class="btn-edit" onclick="editOffre('${o.id}')"><i class="fas fa-pen"></i></button>
+                <button class="btn-delete" onclick="confirmDeleteOffre('${o.id}')"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function openOffreForm(data = null) {
+    document.getElementById('offreId').value = data ? data.id : '';
+    document.getElementById('modalOffreTitle').textContent = data ? 'Modifier l\'offre' : 'Nouvelle offre';
+    populateEntrepriseSelects();
+    document.getElementById('oEntreprise').value = data?.entrepriseId || '';
+    document.getElementById('oPoste').value = data?.poste || '';
+    document.getElementById('oLieu').value = data?.lieu || '';
+    document.getElementById('oContrat').value = data?.contrat || '';
+    document.getElementById('oStatut').value = data?.statut || 'Ouverte';
+    document.getElementById('oDescription').value = data?.description || '';
+    openModal('modalOffre');
+}
+
+function editOffre(id) {
+    const o = offres.find(x => x.id === id);
+    if (o) openOffreForm(o);
+}
+
+async function saveOffre() {
+    const id = document.getElementById('offreId').value;
+    const data = {
+        entrepriseId: document.getElementById('oEntreprise').value,
+        poste: document.getElementById('oPoste').value.trim(),
+        lieu: document.getElementById('oLieu').value.trim(),
+        contrat: document.getElementById('oContrat').value,
+        statut: document.getElementById('oStatut').value,
+        description: document.getElementById('oDescription').value.trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (!data.entrepriseId || !data.poste) {
+        showToast('Entreprise et poste sont obligatoires', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        if (id) {
+            await db.collection('offres').doc(id).update(data);
+            showToast('Offre mise à jour');
+        } else {
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection('offres').add(data);
+            showToast('Offre ajoutée');
+        }
+        closeModal('modalOffre');
+        await loadOffres();
+    } catch (e) {
+        showToast('Erreur', 'error');
+    }
+    showLoading(false);
+}
+
+function confirmDeleteOffre(id) {
+    document.getElementById('confirmMessage').textContent = 'Supprimer cette offre ?';
+    document.getElementById('confirmDeleteBtn').onclick = async () => {
+        showLoading(true);
+        try {
+            const batch = db.batch();
+            const assignSnap = await db.collection('assignations').where('offreId', '==', id).get();
+            assignSnap.docs.forEach(d => batch.delete(d.ref));
+            batch.delete(db.collection('offres').doc(id));
+            await batch.commit();
+            closeModal('modalConfirm');
+            showToast('Offre supprimée');
+            await loadAllData();
+        } catch (e) {
+            showToast('Erreur', 'error');
+        }
+        showLoading(false);
+    };
+    openModal('modalConfirm');
+}
+
+// ========================================================================
+//  ASSIGNATIONS TABLE
+// ========================================================================
+function renderAssignations() {
+    const tbody = document.getElementById('assignationsTable');
+    if (assignations.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-light);">Aucune assignation</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = assignations.map(a => {
+        const c = candidats.find(x => x.id === a.candidatId);
+        const o = offres.find(x => x.id === a.offreId);
+        const e = entreprises.find(x => x.id === a.entrepriseId);
+        return `<tr>
+            <td class="td-name">${esc(c ? `${c.prenom} ${c.nom}` : '—')}</td>
+            <td>${esc(e?.nom || '—')}</td>
+            <td>${esc(o?.poste || '—')}</td>
+            <td>${a.dateAssignation ? formatDate(a.dateAssignation) : '—'}</td>
+            <td class="td-actions">
+                <button class="btn-delete" title="Retirer" onclick="confirmDeleteAssignation('${a.id}')"><i class="fas fa-unlink"></i></button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function confirmDeleteAssignation(id) {
+    document.getElementById('confirmMessage').textContent = 'Retirer cette assignation ?';
+    document.getElementById('confirmDeleteBtn').onclick = async () => {
+        showLoading(true);
+        try {
+            await db.collection('assignations').doc(id).delete();
+            closeModal('modalConfirm');
+            showToast('Assignation retirée');
+            await loadAllData();
+        } catch (e) {
+            showToast('Erreur', 'error');
+        }
+        showLoading(false);
+    };
+    openModal('modalConfirm');
+}
+
+// ========================================================================
+//  NAVIGATION
+// ========================================================================
+function showSection(name) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById(`section-${name}`).classList.add('active');
+    document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
+    const sidebarLink = document.querySelector(`[data-section="${name}"]`);
+    if (sidebarLink) sidebarLink.classList.add('active');
+}
+
+// ========================================================================
+//  MODAL HELPERS
+// ========================================================================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ========================================================================
+//  UTILITIES
+// ========================================================================
+function esc(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatDate(d) {
+    if (!d) return '—';
+    const date = new Date(d);
+    if (isNaN(date)) return d;
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+function showLoading(show) {
+    document.getElementById('loadingOverlay').classList.toggle('show', show);
+}
+
+// ========================================================================
+//  GOOGLE DRIVE PDF HELPERS
+// ========================================================================
+function extractDriveFileId(url) {
+    if (!url) return null;
+    // Format: https://drive.google.com/file/d/FILE_ID/view
+    let match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match) return match[1];
+    // Format: https://drive.google.com/open?id=FILE_ID
+    match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match) return match[1];
+    // Format: direct ID
+    if (/^[a-zA-Z0-9_-]{20,}$/.test(url)) return url;
+    return null;
+}
+
+function getDriveViewUrl(url) {
+    const fileId = extractDriveFileId(url);
+    if (fileId) return `https://drive.google.com/file/d/${fileId}/view`;
+    return url;
+}
+
+function getDriveEmbedUrl(url) {
+    const fileId = extractDriveFileId(url);
+    if (fileId) return `https://drive.google.com/file/d/${fileId}/preview`;
+    return null;
+}
+
+function showDrivePdf(url) {
+    const embedUrl = getDriveEmbedUrl(url);
+    if (embedUrl) {
+        document.getElementById('pdfViewer').src = embedUrl;
+        document.getElementById('pdfViewer').style.display = 'block';
+        document.getElementById('noPdf').style.display = 'none';
+    } else {
+        document.getElementById('pdfViewer').style.display = 'none';
+        document.getElementById('noPdf').style.display = 'block';
+    }
+}
+
+function previewDrivePdf() {
+    const url = document.getElementById('cPdfUrl').value.trim();
+    if (!url) {
+        showToast('Collez d\'abord un lien Google Drive', 'error');
+        return;
+    }
+    const embedUrl = getDriveEmbedUrl(url);
+    if (embedUrl) {
+        showDrivePdf(url);
+        showToast('Prévisualisation chargée');
+    } else {
+        showToast('Lien Google Drive non reconnu', 'error');
+    }
+}
+
+function copyTexteCv() {
+    const textarea = document.getElementById('cTexteCv');
+    textarea.select();
+    navigator.clipboard.writeText(textarea.value).then(() => {
+        showToast('Texte copié dans le presse-papier');
+    }).catch(() => {
+        document.execCommand('copy');
+        showToast('Texte copié');
+    });
+}
+</script>
+
+</body>
+</html>
