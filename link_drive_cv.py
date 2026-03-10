@@ -1,204 +1,166 @@
 """
 Script de liaison des CV Google Drive avec les fiches Firestore.
-Scanne le dossier Drive, puis pour chaque PDF essaie de trouver
-la fiche candidat correspondante dans Firestore (par nom de fichier,
-email ou nom/prénom) et met à jour le champ pdfUrl.
+- Scanne le dossier Drive
+- Matche chaque PDF avec la fiche candidat correspondante
+- Télécharge le PDF et le stocke en base64 dans Firestore (si < 900 Ko)
+- Met à jour le champ pdfUrl dans tous les cas
 
-Usage via GitHub Actions :
-  GOOGLE_SA_KEY='...' FIREBASE_SA_KEY='...' DRIVE_FOLDER_ID='...' python link_drive_cv.py
+Usage: GOOGLE_SA_KEY='...' FIREBASE_SA_KEY='...' DRIVE_FOLDER_ID='...' python link_drive_cv.py
 """
 
-import os
-import re
-import json
-import unicodedata
-
+import os, re, json, base64, io, unicodedata
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Config
 DRIVE_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "1g2kaOha6xJKQB1CowpNacBsO2XCcHz8y")
 GOOGLE_SA_KEY = json.loads(os.environ["GOOGLE_SA_KEY"])
 FIREBASE_SA_KEY = json.loads(os.environ["FIREBASE_SA_KEY"])
-
+MAX_BASE64_SIZE = 900_000  # 900 Ko max pour rester sous la limite 1 Mo de Firestore
 
 def init_drive():
     creds = service_account.Credentials.from_service_account_info(
-        GOOGLE_SA_KEY,
-        scopes=["https://www.googleapis.com/auth/drive.readonly"]
-    )
+        GOOGLE_SA_KEY, scopes=["https://www.googleapis.com/auth/drive.readonly"])
     return build("drive", "v3", credentials=creds)
-
 
 def init_firestore():
     cred = credentials.Certificate(FIREBASE_SA_KEY)
     firebase_admin.initialize_app(cred)
     return firestore.client()
 
-
-def list_drive_pdfs(drive_service):
-    results = []
-    page_token = None
+def list_drive_pdfs(drive):
+    results, page_token = [], None
     while True:
-        response = drive_service.files().list(
+        resp = drive.files().list(
             q=f"'{DRIVE_FOLDER_ID}' in parents and mimeType='application/pdf' and trashed=false",
-            spaces="drive",
-            fields="nextPageToken, files(id, name)",
-            pageToken=page_token,
-            pageSize=100
+            fields="nextPageToken, files(id, name, size)", pageToken=page_token, pageSize=100
         ).execute()
-        results.extend(response.get("files", []))
-        page_token = response.get("nextPageToken")
-        if not page_token:
-            break
+        results.extend(resp.get("files", []))
+        page_token = resp.get("nextPageToken")
+        if not page_token: break
     return results
 
+def download_pdf_bytes(drive, file_id):
+    request = drive.files().get_media(fileId=file_id)
+    buffer = io.BytesIO()
+    downloader = MediaIoBaseDownload(buffer, request)
+    done = False
+    while not done:
+        _, done = downloader.next_chunk()
+    return buffer.getvalue()
 
 def normalize(text):
-    """Normalise un texte pour la comparaison : minuscules, sans accents, sans caractères spéciaux."""
-    if not text:
-        return ""
+    if not text: return ""
     text = text.lower().strip()
-    # Supprimer les accents
     text = unicodedata.normalize('NFD', text)
     text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
-    # Garder uniquement les lettres et espaces
     text = re.sub(r'[^a-z\s]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
-
+    return re.sub(r'\s+', ' ', text).strip()
 
 def extract_names_from_filename(filename):
-    """Extrait des mots-clés de nom depuis le nom de fichier PDF."""
     name = os.path.splitext(filename)[0]
-    # Retirer les mots courants
-    noise = ['cv', 'resume', 'curriculum', 'vitae', 'pdf', 'final', 'maj',
-             'mise', 'jour', 'update', 'fr', 'en', 'french', 'english',
-             'professionnel', 'minimaliste', 'beige', 'premium', 'merged',
-             'les', 'derniers', 'ag', 'voy', 'consultant', 'confirme',
-             'directrice', 'ventes', 'assistante', 'conseiller', 'vendeur',
-             'agent', 'voyage', 'voyages', 'travel', 'manager']
-    # Remplacer séparateurs
+    noise = ['cv','resume','curriculum','vitae','pdf','final','maj','mise','jour',
+             'update','fr','en','french','english','professionnel','minimaliste',
+             'beige','premium','merged','les','derniers','ag','voy','consultant',
+             'confirme','directrice','ventes','assistante','conseiller','vendeur',
+             'agent','voyage','voyages','travel','manager']
     name = re.sub(r'[_\-\.\(\)\d]+', ' ', name)
     words = [w.strip() for w in name.split() if w.strip().lower() not in noise and len(w.strip()) > 1]
     return [normalize(w) for w in words]
 
+def find_match(pdf, candidats):
+    filename = pdf['name']
+    filename_norm = normalize(os.path.splitext(filename)[0])
+    filename_words = extract_names_from_filename(filename)
+    best, best_score = None, 0
+
+    for c in candidats:
+        if c.get('pdfBase64'): continue  # deja traite
+        score = 0
+        # Match driveFileName exact
+        if c.get('_dn') and c['_dn'] == filename_norm:
+            score = 100
+        # Match nom+prenom
+        if score < 100 and c['_nom'] and c['_prenom']:
+            if c['_nom'] in filename_norm and c['_prenom'] in filename_norm:
+                score = max(score, 90)
+            elif c['_nom'] in filename_norm and len(c['_nom']) > 3:
+                score = max(score, 60)
+        # Match mots fichier vs nom/prenom
+        if score < 90 and filename_words:
+            mw = sum(1 for fw in filename_words if len(fw) > 2 and (fw == c['_nom'] or fw == c['_prenom']))
+            if mw >= 2: score = max(score, 85)
+            elif mw >= 1 and len(filename_words) <= 3: score = max(score, 50)
+        # Match email
+        if score < 90 and c['_email']:
+            el = c['_email'].split('@')[0]
+            if el in filename_norm: score = max(score, 80)
+
+        if score > best_score:
+            best_score = score
+            best = c
+    return best if best_score >= 50 else None
 
 def main():
-    print("=== Liaison CV Drive <-> Firestore ===\n")
-
+    print("=== Link Drive CV + Store Base64 ===\n")
     drive = init_drive()
     db = init_firestore()
 
-    # 1. Lister les PDF du Drive
-    pdf_files = list_drive_pdfs(drive)
-    print(f"[Drive] {len(pdf_files)} PDF(s) trouves\n")
+    pdfs = list_drive_pdfs(drive)
+    print(f"[Drive] {len(pdfs)} PDF(s)\n")
 
-    # 2. Charger toutes les fiches candidats de Firestore
     docs = list(db.collection('candidats').stream())
     candidats = []
     for doc in docs:
-        data = doc.to_dict()
-        data['_id'] = doc.id
-        data['_search_nom'] = normalize(data.get('nom', ''))
-        data['_search_prenom'] = normalize(data.get('prenom', ''))
-        data['_search_email'] = data.get('email', '').strip().lower()
-        data['_search_driveFileName'] = normalize(data.get('driveFileName', ''))
-        candidats.append(data)
+        d = doc.to_dict()
+        d['_id'] = doc.id
+        d['_nom'] = normalize(d.get('nom',''))
+        d['_prenom'] = normalize(d.get('prenom',''))
+        d['_email'] = d.get('email','').strip().lower()
+        d['_dn'] = normalize(d.get('driveFileName',''))
+        candidats.append(d)
+    print(f"[Firestore] {len(candidats)} candidats\n")
 
-    print(f"[Firestore] {len(candidats)} candidats charges\n")
+    linked = 0
+    b64_stored = 0
+    skipped = 0
+    errors = 0
 
-    # Compter ceux qui ont déjà un pdfUrl
-    already_linked = sum(1 for c in candidats if c.get('pdfUrl'))
-    print(f"[Info] {already_linked} ont deja un pdfUrl\n")
+    for i, pdf in enumerate(pdfs):
+        match = find_match(pdf, candidats)
+        if not match:
+            skipped += 1
+            continue
 
-    matched = 0
-    not_matched = 0
+        drive_url = f"https://drive.google.com/file/d/{pdf['id']}/view"
+        update_data = {'pdfUrl': drive_url}
 
-    for pdf in pdf_files:
-        file_id = pdf['id']
-        filename = pdf['name']
-        drive_url = f"https://drive.google.com/file/d/{file_id}/view"
+        # Telecharger et convertir en base64
+        try:
+            pdf_bytes = download_pdf_bytes(drive, pdf['id'])
+            if len(pdf_bytes) <= MAX_BASE64_SIZE:
+                b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+                update_data['pdfBase64'] = b64
+                b64_stored += 1
+            else:
+                update_data['pdfBase64'] = ''  # trop gros, on garde juste le lien
 
-        filename_words = extract_names_from_filename(filename)
-        filename_norm = normalize(os.path.splitext(filename)[0])
+            db.collection('candidats').document(match['_id']).update(update_data)
+            match['pdfBase64'] = 'done'  # marquer comme traite
+            linked += 1
+            if linked % 25 == 0:
+                print(f"  {linked} lies...")
+        except Exception as e:
+            errors += 1
+            print(f"  Erreur {match['_id']}: {e}")
 
-        best_match = None
-        best_score = 0
-
-        for c in candidats:
-            # Skip si déjà un pdfUrl
-            if c.get('pdfUrl'):
-                continue
-
-            score = 0
-
-            # Match 1: driveFileName exact (pour les batches 1-3 qui ont ce champ)
-            if c['_search_driveFileName'] and c['_search_driveFileName'] == filename_norm:
-                score = 100
-            
-            # Match 2: nom + prénom dans le nom du fichier
-            if score < 100 and c['_search_nom'] and c['_search_prenom']:
-                nom_in = c['_search_nom'] in filename_norm
-                prenom_in = c['_search_prenom'] in filename_norm
-                if nom_in and prenom_in:
-                    score = max(score, 90)
-                elif nom_in and len(c['_search_nom']) > 3:
-                    score = max(score, 60)
-                elif prenom_in and len(c['_search_prenom']) > 3:
-                    # Prénom seul = risque de faux positif, mais on garde un score moyen
-                    score = max(score, 30)
-
-            # Match 3: mots du nom de fichier vs nom/prénom du candidat
-            if score < 90 and filename_words:
-                matching_words = 0
-                for fw in filename_words:
-                    if len(fw) > 2:
-                        if fw == c['_search_nom'] or fw == c['_search_prenom']:
-                            matching_words += 1
-                        elif fw in c['_search_nom'] or fw in c['_search_prenom']:
-                            matching_words += 0.5
-                if matching_words >= 2:
-                    score = max(score, 85)
-                elif matching_words >= 1 and len(filename_words) <= 3:
-                    score = max(score, 50)
-
-            # Match 4: email dans le nom de fichier
-            if score < 90 and c['_search_email']:
-                email_local = c['_search_email'].split('@')[0]
-                if email_local in filename_norm:
-                    score = max(score, 80)
-
-            if score > best_score:
-                best_score = score
-                best_match = c
-
-        if best_match and best_score >= 50:
-            # Mettre à jour Firestore
-            try:
-                db.collection('candidats').document(best_match['_id']).update({
-                    'pdfUrl': drive_url
-                })
-                best_match['pdfUrl'] = drive_url  # Marquer comme traité
-                matched += 1
-                if matched % 25 == 0:
-                    print(f"  {matched} lies...")
-            except Exception as e:
-                print(f"  Erreur update {best_match['_id']}: {e}")
-        else:
-            not_matched += 1
-
-    print(f"\n=== Résultat ===")
-    print(f"  Lies: {matched}")
-    print(f"  Non matches: {not_matched}")
-    print(f"  Deja lies: {already_linked}")
-
-    # Afficher les candidats qui n'ont toujours pas de pdfUrl
-    still_empty = sum(1 for c in candidats if not c.get('pdfUrl'))
-    print(f"  Encore sans pdfUrl: {still_empty}")
-
+    print(f"\n=== Resultat ===")
+    print(f"  Lies: {linked}")
+    print(f"  Base64 stockes: {b64_stored}")
+    print(f"  Non matches: {skipped}")
+    print(f"  Erreurs: {errors}")
 
 if __name__ == '__main__':
     main()
